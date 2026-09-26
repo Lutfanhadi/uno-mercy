@@ -3,7 +3,11 @@ import { io } from 'socket.io-client';
 import { playCardSound, drawCardSound, unoSound, mercySound, hoverSound, toggleBgm } from './sound';
 import './App.css';
 
-const socket = io("https://ahead-culprit-treble.ngrok-free.dev");
+const socket = io("https://ahead-culprit-treble.ngrok-free.dev", {
+  extraHeaders: {
+    "ngrok-skip-browser-warning": "true",
+  },
+});
 
 // ============================================================
 // SVG ICONS
