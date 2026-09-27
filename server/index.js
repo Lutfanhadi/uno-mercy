@@ -80,9 +80,11 @@ const canPlayCard = (card, room, playerHand, pendingDrawAmount) => {
     return cardDraw >= topDraw;
   }
 
-  // Hapus Legality Rule: Semua Wild (termasuk WD4 & WRDF) sekarang bisa dimainkan bebas kapan saja.
+  // Kartu hitam (color: 'ANY') → bebas dimainkan kapanpun (Wild +6, +10, WRDF, Roulette)
+  if (card.color === 'ANY') return true;
 
-  if (card.type === 'WILD') return true;
+  // Kartu WILD berwarna (WILD_DRAW_FOUR merah/kuning/hijau/biru) →
+  // harus cocok warna ATAU nilai dengan kartu di tumpukan (seperti action card biasa)
   if (card.color === room.currentColor) return true;
 
   const topVal = topCard.value;
@@ -91,6 +93,7 @@ const canPlayCard = (card, room, playerHand, pendingDrawAmount) => {
 
   return false;
 };
+
 
 const refillDeck = (room) => {
   if (room.deck.length === 0) {
@@ -509,6 +512,7 @@ io.on('connection', (socket) => {
       return;
     }
 
+    room.previousColor = room.currentColor;
     applyCardEffect(room, cp, card, chosenColor || 'RED', io);
     if (checkWin(room, io)) return;
     io.to(roomCode).emit('game_state', sanitize(room));
@@ -607,6 +611,23 @@ io.on('connection', (socket) => {
       io.to(roomCode).emit('game_state', sanitize(room));
       checkBotTurn(room);
     }
+  });
+
+  socket.on('cancel_swap', ({ roomCode }) => {
+    const room = rooms.get(roomCode);
+    if (!room || room.status !== 'awaiting_swap_target') return;
+    const cp = room.players[room.currentTurnIndex];
+    if (cp.id !== socket.id || room.swapInitiator !== socket.id) return;
+    
+    // Undo the play
+    const poppedCard = room.discardPile.pop();
+    cp.hand.push(poppedCard);
+    
+    room.currentColor = room.previousColor || room.currentColor;
+    room.status = 'playing';
+    room.swapInitiator = null;
+    
+    io.to(roomCode).emit('game_state', sanitize(room));
   });
 
   socket.on('roulette_color', ({ roomCode, color }) => {

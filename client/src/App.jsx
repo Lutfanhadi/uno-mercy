@@ -2,6 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { playCardSound, drawCardSound, unoSound, mercySound, hoverSound, toggleBgm } from './sound';
 import './App.css';
+import {
+  BookOpen, SquareStack, Target, Skull, CheckCircle, Hash, Ban, ArrowRight, Repeat,
+  RefreshCw, Users, Plus, ArrowDownToLine, Zap, AlertTriangle, Palette, Lightbulb, Scale,
+  Search, Dices, Frown, BarChart2, Trophy, Swords, Home, Link, User, Bot, Crown,
+  Hourglass, Rocket, Flame, XCircle, Circle, Trash2, Volume2, VolumeX, Hand
+} from 'lucide-react';
+
 
 const socket = io("https://ahead-culprit-treble.ngrok-free.dev", {
   extraHeaders: {
@@ -355,14 +362,14 @@ function UnoCard({ card, onClick, disabled, isHidden, isHighlight, isMini }) {
 // ============================================================
 const TUTORIAL_SLIDES = [
   {
-    title: '📖 Cara Bermain UNO No Mercy',
+    title: <><BookOpen size={20} style={{marginRight: 6}} /> Cara Bermain UNO No Mercy</>,
     card: null,
     isIntro: true,
     desc: 'UNO No Mercy adalah game kartu turn-based. Tujuan utama adalah menjadi pemain pertama yang menghabiskan semua kartu di tangan.',
     details: [
-      { icon: '🃏', label: '7 kartu awal', text: 'Setiap pemain mendapat 7 kartu di awal permainan.' },
-      { icon: '🎯', label: 'Cara main', text: 'Mainkan kartu yang cocok warna, angka, atau jenisnya dengan kartu di tumpukan.' },
-      { icon: '💀', label: 'Mercy Rule', text: 'Jika kartu kamu mencapai batas Mercy, kamu dieliminasi!' },
+      { icon: <SquareStack size={18} />, label: '7 kartu awal', text: 'Setiap pemain mendapat 7 kartu di awal permainan.' },
+      { icon: <Target size={18} />, label: 'Cara main', text: 'Mainkan kartu yang cocok warna, angka, atau jenisnya dengan kartu di tumpukan.' },
+      { icon: <Skull size={18} />, label: 'Mercy Rule', text: 'Jika kartu kamu mencapai batas Mercy, kamu dieliminasi!' },
     ],
   },
   {
@@ -370,110 +377,110 @@ const TUTORIAL_SLIDES = [
     card: { id: 'd-num', type: 'NUMBER', color: 'RED', value: '7' },
     desc: 'Kartu angka adalah kartu dasar UNO. Tidak ada efek khusus — cukup mainkan dan giliran berpindah ke pemain berikutnya.',
     details: [
-      { icon: '✅', label: 'Cara main', text: 'Mainkan jika warna atau angkanya sama dengan kartu di tumpukan.' },
-      { icon: '0️⃣', label: 'Angka 0', text: 'Semua pemain aktif mengoper kartu ke pemain berikutnya (searah arah giliran).' },
-      { icon: '7️⃣', label: 'Angka 7', text: 'Tukar kartu tangan dengan pemain lain pilihan kamu.' },
+      { icon: <CheckCircle size={18} />, label: 'Cara main', text: 'Mainkan jika warna atau angkanya sama dengan kartu di tumpukan.' },
+      { icon: <Hash size={18} />, label: 'Angka 0', text: 'Semua pemain aktif mengoper kartu ke pemain berikutnya (searah arah giliran).' },
+      { icon: <Hash size={18} />, label: 'Angka 7', text: 'Tukar kartu tangan dengan pemain lain pilihan kamu.' },
     ],
   },
   {
-    title: '⊘ Kartu Skip (Lewati)',
+    title: <><Ban size={18} style={{marginRight: 6}} /> Kartu Skip (Lewati)</>,
     card: { id: 'd-skip', type: 'ACTION', color: 'RED', value: 'SKIP' },
     desc: 'Kartu Skip membuat pemain berikutnya kehilangan giliran dan langsung melewatinya.',
     details: [
-      { icon: '➡️', label: 'Efek', text: 'P1 main Skip → P2 dilewati → P3 bermain.' },
-      { icon: '🔁', label: '2 Pemain', text: 'Pemain yang main Skip mendapat giliran lagi.' },
+      { icon: <ArrowRight size={18} />, label: 'Efek', text: 'P1 main Skip → P2 dilewati → P3 bermain.' },
+      { icon: <Repeat size={18} />, label: '2 Pemain', text: 'Pemain yang main Skip mendapat giliran lagi.' },
     ],
   },
   {
-    title: '🔄 Kartu Reverse (Balik Arah)',
+    title: <><RefreshCw size={18} style={{marginRight: 6}} /> Kartu Reverse (Balik Arah)</>,
     card: { id: 'd-rev', type: 'ACTION', color: 'BLUE', value: 'REVERSE' },
     desc: 'Membalik arah permainan. Jika sebelumnya searah jarum jam, setelah Reverse menjadi berlawanan arah jarum jam.',
     details: [
-      { icon: '👥', label: '3+ Pemain', text: 'Giliran berikutnya mengikuti arah yang baru.' },
-      { icon: '🔁', label: '2 Pemain', text: 'Berfungsi seperti Skip — pemain yang main Reverse mendapat giliran lagi.' },
+      { icon: <Users size={18} />, label: '3+ Pemain', text: 'Giliran berikutnya mengikuti arah yang baru.' },
+      { icon: <Repeat size={18} />, label: '2 Pemain', text: 'Berfungsi seperti Skip — pemain yang main Reverse mendapat giliran lagi.' },
     ],
   },
   {
-    title: '➕ Kartu Draw Two (+2)',
+    title: <><Plus size={18} style={{marginRight: 6}} /> Kartu Draw Two (+2)</>,
     card: { id: 'd-d2', type: 'ACTION', color: 'GREEN', value: 'DRAW_TWO' },
     desc: 'Pemain berikutnya wajib mengambil 2 kartu dan kehilangan giliran mereka.',
     details: [
-      { icon: '📥', label: 'Efek', text: 'P1 main +2 → P2 ambil 2 kartu → P2 dilewati → P3 bermain.' },
-      { icon: '🚫', label: 'No Stacking', text: 'P2 tidak bisa melawan dengan +2 miliknya. Wajib ambil 2 kartu.' },
+      { icon: <ArrowDownToLine size={18} />, label: 'Efek', text: 'P1 main +2 → P2 ambil 2 kartu → P2 dilewati → P3 bermain.' },
+      { icon: <Ban size={18} />, label: 'No Stacking', text: 'P2 tidak bisa melawan dengan +2 miliknya. Wajib ambil 2 kartu.' },
     ],
   },
   {
-    title: '⊘ Skip Everyone (Lewati Semua)',
+    title: <><Ban size={18} style={{marginRight: 6}} /> Skip Everyone (Lewati Semua)</>,
     card: { id: 'd-se', type: 'ACTION', color: 'YELLOW', value: 'SKIP_EVERYONE' },
     desc: 'Kartu spesial No Mercy! Semua pemain lain dilewati, dan kamu mendapat giliran lagi.',
     details: [
-      { icon: '💥', label: 'Efek', text: 'Semua pemain lain kehilangan giliran sekaligus. Kamu main lagi!' },
-      { icon: '⚠️', label: 'Perhatian', text: 'Sangat powerful — gunakan dengan tepat!' },
+      { icon: <Zap size={18} />, label: 'Efek', text: 'Semua pemain lain kehilangan giliran sekaligus. Kamu main lagi!' },
+      { icon: <AlertTriangle size={18} />, label: 'Perhatian', text: 'Sangat powerful — gunakan dengan tepat!' },
     ],
   },
   {
-    title: '🗑️ Discard All (Buang Semua Warna)',
+    title: <><Trash2 size={18} style={{marginRight: 6}} /> Discard All (Buang Semua Warna)</>,
     card: { id: 'd-da', type: 'ACTION', color: 'RED', value: 'DISCARD_ALL' },
     desc: 'Buang semua kartu di tanganmu yang memiliki warna sama dengan kartu ini ke tumpukan discard.',
     details: [
-      { icon: '🎨', label: 'Efek', text: 'Semua kartu merah di tangan dibuang jika mainkan Discard All merah.' },
-      { icon: '💡', label: 'Strategi', text: 'Sangat berguna untuk mengurangi kartu sekaligus banyak!' },
+      { icon: <Palette size={18} />, label: 'Efek', text: 'Semua kartu merah di tangan dibuang jika mainkan Discard All merah.' },
+      { icon: <Lightbulb size={18} />, label: 'Strategi', text: 'Sangat berguna untuk mengurangi kartu sekaligus banyak!' },
     ],
   },
   {
-    title: '🌈 Wild Draw Four (+4)',
+    title: <><Palette size={18} style={{marginRight: 6}} /> Wild Draw Four (+4)</>,
     card: { id: 'd-w4', type: 'WILD', color: 'ANY', value: 'WILD_DRAW_FOUR' },
     desc: 'Kartu Wild! Pilih warna baru, dan pemain berikutnya wajib mengambil 4 kartu serta kehilangan giliran.',
     details: [
-      { icon: '⚖️', label: 'Syarat', text: 'Hanya boleh dimainkan jika TIDAK punya kartu yang cocok warna aktif.' },
-      { icon: '🔍', label: 'Challenge', text: 'Pemain berikutnya bisa Challenge jika curiga kamu punya kartu warna aktif.' },
+      { icon: <Scale size={18} />, label: 'Syarat', text: 'Hanya boleh dimainkan jika TIDAK punya kartu yang cocok warna aktif.' },
+      { icon: <Search size={18} />, label: 'Challenge', text: 'Pemain berikutnya bisa Challenge jika curiga kamu punya kartu warna aktif.' },
     ],
   },
   {
-    title: '🌈 Wild Draw Six (+6)',
+    title: <><Palette size={18} style={{marginRight: 6}} /> Wild Draw Six (+6)</>,
     card: { id: 'd-w6', type: 'WILD', color: 'ANY', value: 'WILD_DRAW_SIX' },
     desc: 'Versi lebih sadis dari Wild Draw Four! Pemain berikutnya mengambil 6 kartu dan kehilangan giliran.',
     details: [
-      { icon: '🎨', label: 'Efek', text: 'Pilih warna baru → Pemain berikutnya ambil 6 kartu.' },
-      { icon: '💀', label: 'No Mercy', text: 'Kombinasi +6 bisa langsung memicu Mercy Elimination!' },
+      { icon: <Palette size={18} />, label: 'Efek', text: 'Pilih warna baru → Pemain berikutnya ambil 6 kartu.' },
+      { icon: <Skull size={18} />, label: 'No Mercy', text: 'Kombinasi +6 bisa langsung memicu Mercy Elimination!' },
     ],
   },
   {
-    title: '🌈 Wild Draw Ten (+10)',
+    title: <><Palette size={18} style={{marginRight: 6}} /> Wild Draw Ten (+10)</>,
     card: { id: 'd-w10', type: 'WILD', color: 'ANY', value: 'WILD_DRAW_TEN' },
     desc: 'Kartu paling mematikan! Pemain berikutnya wajib mengambil 10 kartu sekaligus.',
     details: [
-      { icon: '💥', label: 'Efek', text: 'Pilih warna baru → Pemain berikutnya ambil 10 kartu!' },
-      { icon: '💀', label: 'Mercy', text: 'Hampir pasti memicu Mercy Elimination pada pemain yang terkena!' },
+      { icon: <Zap size={18} />, label: 'Efek', text: 'Pilih warna baru → Pemain berikutnya ambil 10 kartu!' },
+      { icon: <Skull size={18} />, label: 'Mercy', text: 'Hampir pasti memicu Mercy Elimination pada pemain yang terkena!' },
     ],
   },
   {
-    title: '🎡 Wild Color Roulette',
+    title: <><Dices size={18} style={{marginRight: 6}} /> Wild Color Roulette</>,
     card: { id: 'd-wr', type: 'WILD', color: 'ANY', value: 'WILD_COLOR_ROULETTE' },
     desc: 'Pemain yang terkena Roulette harus MEMILIH warna, lalu menarik kartu satu per satu sampai menemukan warna tersebut.',
     details: [
-      { icon: '🎲', label: 'Efek', text: 'Pemain yang terkena memilih warna sendiri, lalu tarik kartu sampai dapat warna yang dipilih.' },
-      { icon: '😱', label: 'Risiko', text: 'Bisa menarik sangat banyak kartu — berbahaya!' },
+      { icon: <Dices size={18} />, label: 'Efek', text: 'Pemain yang terkena memilih warna sendiri, lalu tarik kartu sampai dapat warna yang dipilih.' },
+      { icon: <Frown size={18} />, label: 'Risiko', text: 'Bisa menarik sangat banyak kartu — berbahaya!' },
     ],
   },
   {
-    title: '🔄 Wild Reverse + Draw Four',
+    title: <><RefreshCw size={18} style={{marginRight: 6}} /> Wild Reverse + Draw Four</>,
     card: { id: 'd-wrd4', type: 'WILD', color: 'ANY', value: 'WILD_REVERSE_DRAW_FOUR' },
     desc: 'Kombinasi Reverse dan Draw Four! Balik arah permainan, lalu pemain yang kini berikutnya harus ambil 4 kartu.',
     details: [
-      { icon: '🔄', label: 'Efek 1', text: 'Arah permainan dibalik terlebih dahulu.' },
-      { icon: '📥', label: 'Efek 2', text: 'Pemain yang kini berada di urutan berikutnya (setelah reverse) wajib ambil 4 kartu.' },
+      { icon: <RefreshCw size={18} />, label: 'Efek 1', text: 'Arah permainan dibalik terlebih dahulu.' },
+      { icon: <ArrowDownToLine size={18} />, label: 'Efek 2', text: 'Pemain yang kini berada di urutan berikutnya (setelah reverse) wajib ambil 4 kartu.' },
     ],
   },
   {
-    title: '💀 Mercy Rule',
+    title: <><Skull size={18} style={{marginRight: 6}} /> Mercy Rule</>,
     card: null,
     isMercy: true,
     desc: 'Jika jumlah kartu di tanganmu mencapai batas Mercy, kamu langsung DIELIMINASI dari permainan!',
     details: [
-      { icon: '⚠️', label: 'Batas Default', text: 'Mercy Limit default adalah 25 kartu (bisa diatur 15/20/25/30).' },
-      { icon: '📊', label: 'Warning', text: '4 kartu sebelum limit, mercy bar berubah merah sebagai peringatan.' },
-      { icon: '🏆', label: 'Menang', text: 'Pemain terakhir yang aktif atau yang menghabiskan semua kartu adalah pemenang!' },
+      { icon: <AlertTriangle size={18} />, label: 'Batas Default', text: 'Mercy Limit default adalah 25 kartu (bisa diatur 15/20/25/30).' },
+      { icon: <BarChart2 size={18} />, label: 'Warning', text: '4 kartu sebelum limit, mercy bar berubah merah sebagai peringatan.' },
+      { icon: <Trophy size={18} />, label: 'Menang', text: 'Pemain terakhir yang aktif atau yang menghabiskan semua kartu adalah pemenang!' },
     ],
   },
 ];
@@ -489,8 +496,8 @@ function RulesModal({ onClose }) {
   return (
     <div className="rules-overlay" onClick={onClose}>
       <div className="rules-modal" onClick={e => e.stopPropagation()}>
-        <button className="rules-close-btn" onClick={onClose}>✕</button>
-        <h2 className="rules-modal-title">📖 CARA BERMAIN</h2>
+        <button className="rules-close-btn" onClick={onClose}><XCircle size={20}/></button>
+        <h2 className="rules-modal-title"><BookOpen size={20} style={{marginRight: 8, display: "inline-block", verticalAlign: "middle"}}/> CARA BERMAIN</h2>
 
         <div className="rules-progress-bar">
           {TUTORIAL_SLIDES.map((_, i) => (
@@ -517,7 +524,7 @@ function RulesModal({ onClose }) {
             </div>
           ) : s.isMercy ? (
             <div className="rules-card-section">
-              <div className="rules-mercy-icon">💀</div>
+              <div className="rules-mercy-icon"><Skull size={20} /></div>
               <div className="rules-card-info">
                 <h3 className="rules-card-name rules-mercy-name">{s.title}</h3>
                 <p className="rules-card-desc">{s.desc}</p>
@@ -575,7 +582,7 @@ function App() {
   const [room, setRoom] = useState(null);
   const [maxPlayers, setMaxPlayers] = useState(4);
   const [mercyLimit, setMercyLimit] = useState(25);
-  const [chosenColor, setChosenColor] = useState('RED');
+  const [wildColorPending, setWildColorPending] = useState(null); // cardId waiting for color pick
   const [winner, setWinner] = useState('');
   const [bgmActive, setBgmActive] = useState(false);
   const [notification, setNotification] = useState('');
@@ -594,8 +601,8 @@ function App() {
     socket.on('game_state', setRoom);
     socket.on('game_finished', ({ winner: w }) => { setWinner(w); setView('finished'); unoSound(); });
     socket.on('player_eliminated', ({ nickname: n }) => { mercySound(); showNotif(`💀 MERCY! ${n} dieliminasi!`); });
-    socket.on('uno_called', ({ nickname: n }) => { unoSound(); showNotif(`🔥 ${n} berteriak UNO!`); });
-    socket.on('uno_penalty', ({ nickname: n }) => { showNotif(`❌ ${n} lupa UNO — hukuman +2 kartu!`); });
+    socket.on('uno_called', ({ nickname: n }) => { unoSound(); showNotif(`<Flame size={16} style={{marginRight: 4, display: "inline-block", verticalAlign: "middle"}}/> ${n} berteriak UNO!`); });
+    socket.on('uno_penalty', ({ nickname: n }) => { showNotif(`<XCircle size={16} style={{marginRight: 4, display: "inline-block", verticalAlign: "middle"}}/> ${n} lupa UNO — hukuman +2 kartu!`); });
     socket.on('notification', ({ msg }) => showNotif(msg));
     return () => {
       ['room_updated','game_started','game_state','game_finished','player_eliminated','uno_called','uno_penalty','notification'].forEach(e => socket.off(e));
@@ -633,7 +640,7 @@ function App() {
     if (me?.eliminated) {
       return (
         <div className="full-overlay eliminated-screen">
-          <h1 className="mercy-scream">💀 NO MERCY</h1>
+          <h1 className="mercy-scream"><Skull size={24} style={{marginRight: 8}}/> NO MERCY</h1>
           <p>Anda telah dieliminasi dengan {me.hand.length} kartu.</p>
           <button className="nm-btn nm-btn-outline mt-4" onClick={() => window.location.reload()}>Menu Utama</button>
         </div>
@@ -642,17 +649,17 @@ function App() {
 
     return (
       <div className="game-board">
-        <button className="bgm-btn" onClick={handleBgmToggle}>{bgmActive ? '🔊' : '🔇'}</button>
+        <button className="bgm-btn" onClick={handleBgmToggle}>{bgmActive ? <Volume2 size={24}/> : <VolumeX size={24}/>}</button>
         {notification && <div className="toast-notif">{notification}</div>}
         {hasPendingDraw && (
-          <div className="pending-draw-banner">⚠️ Stack aktif! Total +{room.pendingDraw} — Stack atau terima!</div>
+          <div className="pending-draw-banner"><AlertTriangle size={20} style={{marginRight: 6, display: "inline-block", verticalAlign: "middle"}}/> Stack aktif! Total +{room.pendingDraw} — Stack atau terima!</div>
         )}
 
         {/* SWAP TARGET MODAL */}
         {isAwaitingSwap && (
           <div className="action-modal-overlay">
             <div className="action-modal">
-              <h3 className="action-modal-title">🔄 Pilih Target Swap</h3>
+              <h3 className="action-modal-title"><RefreshCw size={18} style={{marginRight: 4}}/> Pilih Target Swap</h3>
               <p className="action-modal-desc">Pilih pemain untuk menukar kartu dengan kamu</p>
               <div className="swap-target-list">
                 {room.players
@@ -667,13 +674,24 @@ function App() {
                       }}
                       onMouseEnter={hoverSound}
                     >
-                      <span className="swap-target-icon">{p.isBot ? '🤖' : '👤'}</span>
+                      <span className="swap-target-icon">{p.isBot ? <Bot size={18} /> : <User size={18} />}</span>
                       <span className="swap-target-name">{p.nickname}</span>
                       <span className="swap-target-count">{p.hand.length} kartu</span>
                     </button>
                   ))
                 }
               </div>
+              <button
+                className="wild-color-cancel"
+                style={{ marginTop: '16px' }}
+                onClick={() => {
+                  hoverSound();
+                  socket.emit('cancel_swap', { roomCode: room.roomCode });
+                }}
+                onMouseEnter={hoverSound}
+              >
+                <XCircle size={16} style={{marginRight: 6}} /> Batal
+              </button>
             </div>
           </div>
         )}
@@ -682,7 +700,7 @@ function App() {
         {isAwaitingRoulette && (
           <div className="action-modal-overlay">
             <div className="action-modal">
-              <h3 className="action-modal-title">🎡 Wild Color Roulette!</h3>
+              <h3 className="action-modal-title"><Dices size={24} style={{marginRight: 8, display: "inline-block", verticalAlign: "middle"}}/> Wild Color Roulette!</h3>
               <p className="action-modal-desc">Pilih warna — kamu akan mengambil kartu sampai mendapatkan warna ini!</p>
               <div className="roulette-color-grid">
                 {['RED','YELLOW','GREEN','BLUE'].map(c => (
@@ -695,14 +713,54 @@ function App() {
                     }}
                     onMouseEnter={hoverSound}
                   >
-                    {c === 'RED' && '🔴'}
-                    {c === 'YELLOW' && '🟡'}
-                    {c === 'GREEN' && '🟢'}
-                    {c === 'BLUE' && '🔵'}
+                    {c === 'RED' && <Circle fill="#e53935" stroke="white" size={20}/>}
+                    {c === 'YELLOW' && <Circle fill="#fdd835" stroke="#1a1000" size={20}/>}
+                    {c === 'GREEN' && <Circle fill="#43a047" stroke="white" size={20}/>}
+                    {c === 'BLUE' && <Circle fill="#1e88e5" stroke="white" size={20}/>}
                     <span>{c}</span>
                   </button>
                 ))}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* WILD COLOR PICKER MODAL */}
+        {wildColorPending && (
+          <div className="action-modal-overlay">
+            <div className="action-modal wild-color-modal">
+              <div className="wild-color-modal-icon"><SquareStack size={40} /></div>
+              <h3 className="action-modal-title">Pilih Warna</h3>
+              <p className="action-modal-desc">Tentukan warna aktif untuk pemain berikutnya</p>
+              <div className="wild-color-grid">
+                {[
+                  { c: 'RED',    emoji: <Circle fill="#ff4444" stroke="none" size={24}/>, label: 'Merah'  },
+                  { c: 'YELLOW', emoji: <Circle fill="#fdd835" stroke="none" size={24}/>, label: 'Kuning' },
+                  { c: 'GREEN',  emoji: <Circle fill="#43a047" stroke="none" size={24}/>, label: 'Hijau'  },
+                  { c: 'BLUE',   emoji: <Circle fill="#1e88e5" stroke="none" size={24}/>, label: 'Biru'   },
+                ].map(({ c, emoji, label }) => (
+                  <button
+                    key={c}
+                    className={`wild-color-btn wild-color-${c.toLowerCase()}`}
+                    onClick={() => {
+                      playCardSound();
+                      socket.emit('play_card', { roomCode: room.roomCode, cardId: wildColorPending, chosenColor: c });
+                      setWildColorPending(null);
+                    }}
+                    onMouseEnter={hoverSound}
+                  >
+                    <span className="wild-color-emoji">{emoji}</span>
+                    <span className="wild-color-label">{label}</span>
+                  </button>
+                ))}
+              </div>
+              <button
+                className="wild-color-cancel"
+                onClick={() => setWildColorPending(null)}
+                onMouseEnter={hoverSound}
+              >
+                <XCircle size={16} style={{marginRight: 6}} /> Batal
+              </button>
             </div>
           </div>
         )}
@@ -720,8 +778,8 @@ function App() {
                 onClick={() => { if (p.hand.length === 1 && !p.unoCalled && !p.eliminated) socket.emit('challenge_uno', { roomCode: room.roomCode, targetId: p.id }); }}
               >
                 <div className="opp-name-row">
-                  <span className="opp-name-txt">{p.isBot ? '🤖' : '👤'} {p.nickname}</span>
-                  {p.eliminated && <span>💀</span>}
+                  <span className="opp-name-txt">{p.isBot ? <Bot size={18} /> : <User size={18} />} {p.nickname}</span>
+                  {p.eliminated && <span><Skull size={20} /></span>}
                 </div>
                 <div className="opp-card-row">
                   {Array.from({ length: Math.min(p.hand.length, 7) }).map((_, i) => (
@@ -734,7 +792,7 @@ function App() {
                 </div>
                 <div className="opp-status-row">
                   <span>{p.hand.length} kartu</span>
-                  {p.unoCalled && <span className="uno-badge">🔥 UNO!</span>}
+                  {p.unoCalled && <span className="uno-badge"><Flame size={16} style={{marginRight: 4, display: "inline-block", verticalAlign: "middle"}}/> UNO!</span>}
                   {p.hand.length === 1 && !p.unoCalled && !p.eliminated && <span className="challenge-badge">TAP: Challenge!</span>}
                 </div>
               </div>
@@ -764,27 +822,14 @@ function App() {
         <div className={`player-area ${isMyTurn ? 'my-turn' : ''}`}>
           <div className="player-top-row">
             <div className="my-stats">
-              <span className="my-name-badge">👤 {me?.nickname}</span>
+              <span className="my-name-badge"><User size={16} style={{marginRight: 4, display: "inline-block", verticalAlign: "middle"}}/> {me?.nickname}</span>
               <span className="my-card-count">{me?.hand.length} kartu</span>
             </div>
 
             <div className="action-buttons">
-              {isMyTurn && room.status === 'playing' && (
-                <div className="color-picker">
-                  <span>Wild:</span>
-                  {['RED','YELLOW','GREEN','BLUE'].map(c => (
-                    <button
-                      key={c}
-                      className={`cp-dot cp-${c.toLowerCase()} ${chosenColor === c ? 'cp-selected' : ''}`}
-                      onClick={() => { playCardSound(); setChosenColor(c); }}
-                      onMouseEnter={hoverSound}
-                    />
-                  ))}
-                </div>
-              )}
               {me?.hand.length === 1 && !me?.unoCalled && (
                 <button className="nm-btn nm-btn-uno" onClick={() => { unoSound(); socket.emit('call_uno', { roomCode: room.roomCode }); }} onMouseEnter={hoverSound}>
-                  🔥 UNO!
+                  <Flame size={16} style={{marginRight: 4, display: "inline-block", verticalAlign: "middle"}}/> UNO!
                 </button>
               )}
               {canPlayDrawn && room.status === 'playing' && (
@@ -805,11 +850,21 @@ function App() {
               };
               const isClickable = isMyTurn && room.status === 'playing' && (!canPlayDrawn || card.id === me.drawnCardThisTurn) && isStackable(card);
               const isHighlight = canPlayDrawn && card.id === me.drawnCardThisTurn;
+              // Wild cards that need color selection (exclude WILD_COLOR_ROULETTE)
+              const needsColorPick = card.color === 'ANY' && card.value !== 'WILD_COLOR_ROULETTE';
               return (
                 <UnoCard
                   key={card.id}
                   card={card}
-                  onClick={isClickable ? (id) => { playCardSound(); socket.emit('play_card', { roomCode: room.roomCode, cardId: id, chosenColor }); } : null}
+                  onClick={isClickable ? (id) => {
+                    playCardSound();
+                    if (needsColorPick) {
+                      // Show color picker modal, don't send to server yet
+                      setWildColorPending(id);
+                    } else {
+                      socket.emit('play_card', { roomCode: room.roomCode, cardId: id, chosenColor: 'RED' });
+                    }
+                  } : null}
                   disabled={!isClickable}
                   isHighlight={isHighlight}
                 />
@@ -823,7 +878,7 @@ function App() {
 
   return (
     <div className="menu-screen">
-      <button className="bgm-btn" onClick={handleBgmToggle}>{bgmActive ? '🔊' : '🔇'}</button>
+      <button className="bgm-btn" onClick={handleBgmToggle}>{bgmActive ? <Volume2 size={24}/> : <VolumeX size={24}/>}</button>
       {notification && <div className="toast-notif">{notification}</div>}
 
       <div className="brand">
@@ -837,10 +892,10 @@ function App() {
         <div className="nm-panel">
           <input className="nm-input" type="text" value={nickname} onChange={e => setNickname(e.target.value)} placeholder="Nama Pemain..." maxLength={15}/>
           <div className="btn-stack">
-            <button className="nm-btn nm-btn-red" onClick={() => { playCardSound(); handleCreateRoom(true); }} onMouseEnter={hoverSound}>⚔️ LAWAN BOT</button>
-            <button className="nm-btn nm-btn-dark" onClick={() => { playCardSound(); setView('create'); }} onMouseEnter={hoverSound}>🏠 BUAT RUANGAN</button>
-            <button className="nm-btn nm-btn-outline" onClick={() => { playCardSound(); setView('join'); }} onMouseEnter={hoverSound}>🔗 GABUNG RUANGAN</button>
-            <button className="nm-btn nm-btn-rules" onClick={() => { playCardSound(); setShowRules(true); }} onMouseEnter={hoverSound}>📖 CARA BERMAIN</button>
+            <button className="nm-btn nm-btn-red" onClick={() => { playCardSound(); handleCreateRoom(true); }} onMouseEnter={hoverSound}><Swords size={20} style={{marginRight: 8, display: "inline-block", verticalAlign: "middle"}}/> LAWAN BOT</button>
+            <button className="nm-btn nm-btn-dark" onClick={() => { playCardSound(); setView('create'); }} onMouseEnter={hoverSound}><Home size={20} style={{marginRight: 8, display: "inline-block", verticalAlign: "middle"}}/> BUAT RUANGAN</button>
+            <button className="nm-btn nm-btn-outline" onClick={() => { playCardSound(); setView('join'); }} onMouseEnter={hoverSound}><Link size={20} style={{marginRight: 8, display: "inline-block", verticalAlign: "middle"}}/> GABUNG RUANGAN</button>
+            <button className="nm-btn nm-btn-rules" onClick={() => { playCardSound(); setShowRules(true); }} onMouseEnter={hoverSound}><BookOpen size={20} style={{marginRight: 8, display: "inline-block", verticalAlign: "middle"}}/> CARA BERMAIN</button>
           </div>
         </div>
       )}
@@ -883,8 +938,8 @@ function App() {
           <div className="player-list">
             {room.players.map(p => (
               <div key={p.id} className="player-entry">
-                <span>{p.isHost ? '👑' : '👤'} {p.nickname} {p.isBot ? '🤖' : ''}</span>
-                <span className={p.isReady ? 'status-ready' : 'status-wait'}>{p.isReady ? '✅ SIAP' : '⏳ MENUNGGU'}</span>
+                <span>{p.isHost ? <Crown size={18} /> : <User size={18} />} {p.nickname} {p.isBot ? <Bot size={18} /> : ''}</span>
+                <span className={p.isReady ? 'status-ready' : 'status-wait'}>{p.isReady ? <><CheckCircle size={18} style={{marginRight: 4}}/> SIAP</> : <><Hourglass size={18} style={{marginRight: 4}}/> MENUNGGU</>}</span>
               </div>
             ))}
           </div>
@@ -906,7 +961,7 @@ function App() {
       {view === 'finished' && (
         <div className="nm-panel text-center">
           <h2 className="panel-title">PERMAINAN SELESAI</h2>
-          <h1 className="winner-shout">🏆 {winner}</h1>
+          <h1 className="winner-shout"><Trophy size={28} style={{marginRight: 8}}/> {winner}</h1>
           <p style={{color:'#aaa', marginBottom: '20px'}}>memenangkan pertandingan!</p>
           <button className="nm-btn nm-btn-dark" onClick={() => { playCardSound(); window.location.reload(); }} onMouseEnter={hoverSound}>MENU UTAMA</button>
         </div>
