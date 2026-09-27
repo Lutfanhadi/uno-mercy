@@ -227,10 +227,10 @@ const applyCardEffect = (room, player, card, chosenColor, io) => {
       DRAW_CARD_VALUES.includes(c.value) && (DRAW_AMOUNTS[c.value] || 0) >= 4
     );
     if (canStack) {
-      room.pendingDraw = (room.pendingDraw || 0) + 4;
+      room.pendingDraw = Number(room.pendingDraw || 0) + 4;
       io.to(room.roomCode).emit('notification', { msg: `⚠️ ${nextPlayer.nickname} bisa stack! Total +${room.pendingDraw}` });
     } else {
-      const total = (room.pendingDraw || 0) + 4;
+      const total = Number(room.pendingDraw || 0) + 4;
       room.pendingDraw = 0;
       const result = drawCards(room, nextPlayer, total);
       if (result === 'MERCY') io.to(room.roomCode).emit('player_eliminated', { nickname: nextPlayer.nickname });
@@ -268,10 +268,10 @@ const applyCardEffect = (room, player, card, chosenColor, io) => {
     );
     if (canStack) {
       // Give them a window to stack; set pending draw
-      room.pendingDraw = (room.pendingDraw || 0) + drawAmt;
+      room.pendingDraw = Number(room.pendingDraw || 0) + Number(drawAmt);
       io.to(room.roomCode).emit('notification', { msg: `⚠️ ${nextPlayer.nickname} bisa stack! Total +${room.pendingDraw}` });
     } else {
-      const total = (room.pendingDraw || 0) + drawAmt;
+      const total = Number(room.pendingDraw || 0) + Number(drawAmt);
       room.pendingDraw = 0;
       const result = drawCards(room, nextPlayer, total);
       if (result === 'MERCY') io.to(room.roomCode).emit('player_eliminated', { nickname: nextPlayer.nickname });
@@ -397,6 +397,20 @@ const checkBotTurn = (room) => {
       io.to(room.roomCode).emit('game_state', sanitize(room));
       checkBotTurn(room);
     } else {
+      if (room.pendingDraw > 0) {
+        // Bot MUST accept the penalty if it can't stack
+        const result = drawCards(room, currentBot, room.pendingDraw);
+        if (result === 'MERCY') {
+          io.to(room.roomCode).emit('player_eliminated', { nickname: currentBot.nickname });
+          if (checkWin(room, io)) return;
+        }
+        room.pendingDraw = 0;
+        advanceTurn(room);
+        io.to(room.roomCode).emit('game_state', sanitize(room));
+        checkBotTurn(room);
+        return;
+      }
+      
       // Draw until playable
       let drew = 0;
       let playable = false;
@@ -415,7 +429,7 @@ const checkBotTurn = (room) => {
           checkBotTurn(room);
           return;
         }
-        if (canPlayCard(drawn, room, currentBot.hand, room.pendingDraw || 0)) {
+        if (canPlayCard(drawn, room, currentBot.hand, 0)) {
           // Bot plays it
           const idx = currentBot.hand.length - 1;
           const card = currentBot.hand[idx];
