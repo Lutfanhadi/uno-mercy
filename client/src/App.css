@@ -624,3 +624,136 @@ body {
   .rules-card-preview { width: 90px; }
   .rules-modal { padding: 20px; }
 }
+
+/* ============================================================
+   ACTION MODALS — Swap Target & Roulette Color
+============================================================ */
+.action-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 800;
+  background: rgba(0,0,0,0.75);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.2s ease;
+}
+
+.action-modal {
+  background: linear-gradient(145deg, rgba(20,20,30,0.98), rgba(10,10,20,0.99));
+  border: 2px solid rgba(255,255,255,0.12);
+  border-radius: 20px;
+  padding: 32px 28px;
+  min-width: 320px;
+  max-width: 420px;
+  width: 90vw;
+  text-align: center;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.8);
+  animation: popIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes popIn {
+  from { transform: scale(0.8); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+.action-modal-title {
+  font-size: 1.4rem;
+  font-weight: 900;
+  color: #fff;
+  margin-bottom: 8px;
+  letter-spacing: 0.5px;
+}
+
+.action-modal-desc {
+  font-size: 0.88rem;
+  color: rgba(255,255,255,0.6);
+  margin-bottom: 24px;
+  font-weight: 700;
+}
+
+/* --- 7 Swap Target List --- */
+.swap-target-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.swap-target-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  border: 2px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.06);
+  color: white;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 800;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  text-align: left;
+  width: 100%;
+}
+
+.swap-target-btn:hover {
+  background: rgba(255,255,255,0.14);
+  border-color: rgba(255,80,80,0.8);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255,50,50,0.25);
+}
+
+.swap-target-icon { font-size: 1.4rem; flex-shrink: 0; }
+.swap-target-name { flex: 1; font-size: 1rem; font-weight: 900; }
+.swap-target-count {
+  font-size: 0.82rem;
+  color: rgba(255,255,255,0.5);
+  background: rgba(255,255,255,0.08);
+  padding: 3px 8px;
+  border-radius: 20px;
+  font-weight: 800;
+}
+
+/* --- Roulette Color Grid --- */
+.roulette-color-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.roulette-color-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 20px 12px;
+  border-radius: 14px;
+  border: 3px solid transparent;
+  cursor: pointer;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 900;
+  font-size: 0.9rem;
+  letter-spacing: 1px;
+  color: white;
+  transition: all 0.18s ease;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+}
+
+.roulette-color-btn span { font-size: 0.8rem; letter-spacing: 2px; }
+
+.roulette-red    { background: linear-gradient(145deg, #e53935, #b71c1c); }
+.roulette-yellow { background: linear-gradient(145deg, #fdd835, #a38000); color: #1a1000; text-shadow: none; }
+.roulette-green  { background: linear-gradient(145deg, #43a047, #1b5e20); }
+.roulette-blue   { background: linear-gradient(145deg, #1e88e5, #0d47a1); }
+
+.roulette-color-btn:hover {
+  transform: scale(1.06) translateY(-3px);
+  filter: brightness(1.15);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  border-color: rgba(255,255,255,0.4);
+}
+
+.roulette-color-btn:active { transform: scale(0.97); }

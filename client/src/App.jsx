@@ -309,6 +309,7 @@ function UnoCard({ card, onClick, disabled, isHidden, isHighlight, isMini }) {
     );
   }
 
+  // WILD_COLOR_ROULETTE stays 'ANY' (black), all other wilds now have a real color
   const isWild = card.color === 'ANY';
   const isSkip = card.value === 'SKIP' || card.value === 'SKIP_EVERYONE';
   const bg = COLOR_MAP[card.color] || '#333';
@@ -449,9 +450,9 @@ const TUTORIAL_SLIDES = [
   {
     title: '🎡 Wild Color Roulette',
     card: { id: 'd-wr', type: 'WILD', color: 'ANY', value: 'WILD_COLOR_ROULETTE' },
-    desc: 'Pemain berikutnya harus menarik kartu dari deck satu per satu sampai menemukan kartu dengan warna yang ditentukan roulette.',
+    desc: 'Pemain yang terkena Roulette harus MEMILIH warna, lalu menarik kartu satu per satu sampai menemukan warna tersebut.',
     details: [
-      { icon: '🎲', label: 'Efek', text: 'Server memilih warna secara acak. Pemain berikutnya tarik kartu sampai dapat warna tersebut.' },
+      { icon: '🎲', label: 'Efek', text: 'Pemain yang terkena memilih warna sendiri, lalu tarik kartu sampai dapat warna yang dipilih.' },
       { icon: '😱', label: 'Risiko', text: 'Bisa menarik sangat banyak kartu — berbahaya!' },
     ],
   },
@@ -624,6 +625,11 @@ function App() {
     const canPlayDrawn = isMyTurn && me?.drawnCardThisTurn;
     const hasPendingDraw = (room.pendingDraw || 0) > 0;
 
+    // Awaiting 7-Swap target selection (I must pick)
+    const isAwaitingSwap = room.status === 'awaiting_swap_target' && room.swapInitiator === socket.id;
+    // Awaiting Roulette color selection (I am the target)
+    const isAwaitingRoulette = room.status === 'awaiting_roulette_color' && room.rouletteTarget === socket.id;
+
     if (me?.eliminated) {
       return (
         <div className="full-overlay eliminated-screen">
@@ -640,6 +646,65 @@ function App() {
         {notification && <div className="toast-notif">{notification}</div>}
         {hasPendingDraw && (
           <div className="pending-draw-banner">⚠️ Stack aktif! Total +{room.pendingDraw} — Stack atau terima!</div>
+        )}
+
+        {/* SWAP TARGET MODAL */}
+        {isAwaitingSwap && (
+          <div className="action-modal-overlay">
+            <div className="action-modal">
+              <h3 className="action-modal-title">🔄 Pilih Target Swap</h3>
+              <p className="action-modal-desc">Pilih pemain untuk menukar kartu dengan kamu</p>
+              <div className="swap-target-list">
+                {room.players
+                  .filter(p => p.id !== socket.id && !p.eliminated)
+                  .map(p => (
+                    <button
+                      key={p.id}
+                      className="swap-target-btn"
+                      onClick={() => {
+                        playCardSound();
+                        socket.emit('swap_cards', { roomCode: room.roomCode, targetId: p.id });
+                      }}
+                      onMouseEnter={hoverSound}
+                    >
+                      <span className="swap-target-icon">{p.isBot ? '🤖' : '👤'}</span>
+                      <span className="swap-target-name">{p.nickname}</span>
+                      <span className="swap-target-count">{p.hand.length} kartu</span>
+                    </button>
+                  ))
+                }
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ROULETTE COLOR MODAL */}
+        {isAwaitingRoulette && (
+          <div className="action-modal-overlay">
+            <div className="action-modal">
+              <h3 className="action-modal-title">🎡 Wild Color Roulette!</h3>
+              <p className="action-modal-desc">Pilih warna — kamu akan mengambil kartu sampai mendapatkan warna ini!</p>
+              <div className="roulette-color-grid">
+                {['RED','YELLOW','GREEN','BLUE'].map(c => (
+                  <button
+                    key={c}
+                    className={`roulette-color-btn roulette-${c.toLowerCase()}`}
+                    onClick={() => {
+                      playCardSound();
+                      socket.emit('roulette_color', { roomCode: room.roomCode, color: c });
+                    }}
+                    onMouseEnter={hoverSound}
+                  >
+                    {c === 'RED' && '🔴'}
+                    {c === 'YELLOW' && '🟡'}
+                    {c === 'GREEN' && '🟢'}
+                    {c === 'BLUE' && '🔵'}
+                    <span>{c}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
         )}
 
         {/* OPPONENTS */}
@@ -681,11 +746,11 @@ function App() {
         <div className="game-table">
           <div className="table-zone">
             <div className="pile-area">
-              <UnoCard isHidden card={null} onClick={isMyTurn ? () => { drawCardSound(); socket.emit('draw_card', { roomCode: room.roomCode }); } : null} />
+              <UnoCard isHidden card={null} onClick={isMyTurn && room.status === 'playing' ? () => { drawCardSound(); socket.emit('draw_card', { roomCode: room.roomCode }); } : null} />
               <span className="pile-label">AMBIL</span>
             </div>
             <div className="table-center-info">
-              <div className={`color-ring color-ring-${room.currentColor.toLowerCase()}`}/>
+              <div className={`color-ring color-ring-${(room.currentColor || 'red').toLowerCase()}`}/>
               <span className="color-label">{room.currentColor}</span>
             </div>
             <div className="pile-area">
@@ -704,7 +769,7 @@ function App() {
             </div>
 
             <div className="action-buttons">
-              {isMyTurn && (
+              {isMyTurn && room.status === 'playing' && (
                 <div className="color-picker">
                   <span>Wild:</span>
                   {['RED','YELLOW','GREEN','BLUE'].map(c => (
@@ -722,7 +787,7 @@ function App() {
                   🔥 UNO!
                 </button>
               )}
-              {canPlayDrawn && (
+              {canPlayDrawn && room.status === 'playing' && (
                 <button className="nm-btn nm-btn-pass" onClick={() => { playCardSound(); socket.emit('pass_turn', { roomCode: room.roomCode }); }} onMouseEnter={hoverSound}>
                   LEWATI
                 </button>
@@ -731,7 +796,14 @@ function App() {
           </div>
           <div className="hand-container">
             {me?.hand.map((card) => {
-              const isClickable = isMyTurn && (!canPlayDrawn || card.id === me.drawnCardThisTurn);
+              const isStackable = (c) => {
+                if (!hasPendingDraw) return true;
+                const drawCards = ['DRAW_TWO', 'WILD_DRAW_FOUR', 'WILD_DRAW_SIX', 'WILD_DRAW_TEN', 'WILD_REVERSE_DRAW_FOUR'];
+                const amounts = { DRAW_TWO: 2, WILD_DRAW_FOUR: 4, WILD_DRAW_SIX: 6, WILD_DRAW_TEN: 10, WILD_REVERSE_DRAW_FOUR: 4 };
+                if (!drawCards.includes(c.value)) return false;
+                return (amounts[c.value] || 0) >= (amounts[topCard?.value] || 0);
+              };
+              const isClickable = isMyTurn && room.status === 'playing' && (!canPlayDrawn || card.id === me.drawnCardThisTurn) && isStackable(card);
               const isHighlight = canPlayDrawn && card.id === me.drawnCardThisTurn;
               return (
                 <UnoCard

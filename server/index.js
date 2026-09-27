@@ -42,15 +42,17 @@ const createDeck = () => {
     // 1× Skip Everyone, 1× Discard All per color
     deck.push({ id: id++, type: 'ACTION', color, value: 'SKIP_EVERYONE' });
     deck.push({ id: id++, type: 'ACTION', color, value: 'DISCARD_ALL' });
+
+    // Colored Wilds — ONLY Wild Draw Four has per-color variants (1 per color = 4 total)
+    deck.push({ id: id++, type: 'WILD', color, value: 'WILD_DRAW_FOUR' });
   });
 
-  // Wild cards × 4 each type (Removed basic WILD)
+  // Black Wild cards (color: 'ANY') — 4 each: WD6, WD10, WRDF, Roulette
   for (let i = 0; i < 4; i++) {
-    deck.push({ id: id++, type: 'WILD', color: 'ANY', value: 'WILD_DRAW_FOUR' });
     deck.push({ id: id++, type: 'WILD', color: 'ANY', value: 'WILD_DRAW_SIX' });
     deck.push({ id: id++, type: 'WILD', color: 'ANY', value: 'WILD_DRAW_TEN' });
-    deck.push({ id: id++, type: 'WILD', color: 'ANY', value: 'WILD_COLOR_ROULETTE' });
     deck.push({ id: id++, type: 'WILD', color: 'ANY', value: 'WILD_REVERSE_DRAW_FOUR' });
+    deck.push({ id: id++, type: 'WILD', color: 'ANY', value: 'WILD_COLOR_ROULETTE' });
   }
 
   return deck.sort(() => Math.random() - 0.5);
@@ -59,9 +61,9 @@ const createDeck = () => {
 // ============================================================
 // RULE ENGINE
 // ============================================================
-const DRAW_CARD_VALUES = ['DRAW_TWO', 'WILD_DRAW_FOUR', 'WILD_DRAW_SIX', 'WILD_DRAW_TEN'];
+const DRAW_CARD_VALUES = ['DRAW_TWO', 'WILD_DRAW_FOUR', 'WILD_DRAW_SIX', 'WILD_DRAW_TEN', 'WILD_REVERSE_DRAW_FOUR'];
 const DRAW_AMOUNTS = {
-  DRAW_TWO: 2, WILD_DRAW_FOUR: 4, WILD_DRAW_SIX: 6, WILD_DRAW_TEN: 10
+  DRAW_TWO: 2, WILD_DRAW_FOUR: 4, WILD_DRAW_SIX: 6, WILD_DRAW_TEN: 10, WILD_REVERSE_DRAW_FOUR: 4
 };
 
 const canPlayCard = (card, room, playerHand, pendingDrawAmount) => {
@@ -69,17 +71,16 @@ const canPlayCard = (card, room, playerHand, pendingDrawAmount) => {
 
   // Stacking rule: if there's a pending draw, can only play equal-or-higher draw card
   if (pendingDrawAmount > 0) {
+    // HANYA kartu yang ada di DRAW_CARD_VALUES yang bisa dipakai untuk stacking
+    // WILD_COLOR_ROULETTE tidak ada di DRAW_CARD_VALUES → otomatis INVALID
     if (!DRAW_CARD_VALUES.includes(card.value)) return false;
-    // Must be equal or higher draw amount to stack
+    // drawValue harus >= drawValue kartu teratas (topCard), BUKAN total pendingDraw
     const cardDraw = DRAW_AMOUNTS[card.value] || 0;
-    return cardDraw >= pendingDrawAmount || card.type === 'WILD';
+    const topDraw = DRAW_AMOUNTS[topCard.value] || 0;
+    return cardDraw >= topDraw;
   }
 
-  // Wild Draw Four Legality: can't play if you have matching color card
-  if (card.value === 'WILD_DRAW_FOUR' || card.value === 'WILD_REVERSE_DRAW_FOUR') {
-    const hasMatchingColor = playerHand.some(c => c.color === room.currentColor);
-    if (hasMatchingColor) return false;
-  }
+  // Hapus Legality Rule: Semua Wild (termasuk WD4 & WRDF) sekarang bisa dimainkan bebas kapan saja.
 
   if (card.type === 'WILD') return true;
   if (card.color === room.currentColor) return true;
@@ -129,7 +130,7 @@ const getNextActiveIndex = (room, fromIndex, skipExtra = 0) => {
 
 const advanceTurn = (room, skipExtra = 0) => {
   room.players.forEach(p => { p.drawnCardThisTurn = null; });
-  room.pendingDraw = 0;
+  // JANGAN reset pendingDraw di sini. Reset hanya terjadi saat penalti ditarik.
   room.currentTurnIndex = getNextActiveIndex(room, room.currentTurnIndex, skipExtra);
 };
 
@@ -158,14 +159,11 @@ const applyCardEffect = (room, player, card, chosenColor, io) => {
 
   // 7's Swap
   if (card.value === '7' && card.type === 'NUMBER') {
-    // In multiplayer, player picks target; in bot mode, random
-    // For simplicity, swap with next active player
-    const nextIdx = getNextActiveIndex(room, room.currentTurnIndex);
-    const temp = room.players[nextIdx].hand;
-    room.players[nextIdx].hand = player.hand;
-    player.hand = temp;
-    io.to(room.roomCode).emit('notification', { msg: `🔄 ${player.nickname} menukar tangan dengan ${room.players[nextIdx].nickname}!` });
-    advanceTurn(room);
+    // Wait for the 'swap_cards' event to handle this effect.
+    // For now, we set a state indicating the player must choose a target.
+    room.status = 'awaiting_swap_target';
+    room.swapInitiator = player.id;
+    io.to(room.roomCode).emit('game_state', sanitize(room));
     return;
   }
 
@@ -189,8 +187,9 @@ const applyCardEffect = (room, player, card, chosenColor, io) => {
   }
 
   if (card.value === 'SKIP') {
-    if (getActivePlayers(room).length === 2) advanceTurn(room); // 2-player: play again
-    else advanceTurn(room, 1); // skip next
+    // skipExtra=1 selalu: lewati 1 pemain berikutnya (lawan), pemain aktif dapat giliran lagi
+    // Ini berlaku untuk 2 pemain maupun 3+ pemain
+    advanceTurn(room, 1);
     return;
   }
 
@@ -218,40 +217,40 @@ const applyCardEffect = (room, player, card, chosenColor, io) => {
 
   if (card.value === 'WILD_REVERSE_DRAW_FOUR') {
     room.direction *= -1;
+    // Just like other Draw cards, we treat it as stacking
     advanceTurn(room);
-    // Draw for whoever is now next
-    if (room.pendingDraw === 0) {
-      const nextPlayer = room.players[getNextActiveIndex(room, room.currentTurnIndex)];
-      const result = drawCards(room, nextPlayer, 4);
+    const nextPlayer = room.players[room.currentTurnIndex];
+    const canStack = nextPlayer.hand.some(c =>
+      DRAW_CARD_VALUES.includes(c.value) && (DRAW_AMOUNTS[c.value] || 0) >= 4
+    );
+    if (canStack) {
+      room.pendingDraw = (room.pendingDraw || 0) + 4;
+      io.to(room.roomCode).emit('notification', { msg: `⚠️ ${nextPlayer.nickname} bisa stack! Total +${room.pendingDraw}` });
+    } else {
+      const total = (room.pendingDraw || 0) + 4;
+      room.pendingDraw = 0;
+      const result = drawCards(room, nextPlayer, total);
       if (result === 'MERCY') io.to(room.roomCode).emit('player_eliminated', { nickname: nextPlayer.nickname });
+      io.to(room.roomCode).emit('notification', { msg: `💥 ${nextPlayer.nickname} menarik ${total} kartu!` });
       advanceTurn(room, 1); // skip them
     }
     return;
   }
 
   if (card.value === 'WILD_COLOR_ROULETTE') {
-    // Next player picks a color and draws until they find it
     advanceTurn(room);
+    room.status = 'awaiting_roulette_color';
+    room.rouletteTarget = room.players[room.currentTurnIndex].id;
+    io.to(room.roomCode).emit('game_state', sanitize(room));
+    
+    // Check if target is bot, then auto pick
     const nextPlayer = room.players[room.currentTurnIndex];
-    // Bot or auto: randomly pick a color; player gets UI choice sent via separate event
-    // For MVP: server auto-draws for the next player with a random color
-    const rouletteColor = COLORS[Math.floor(Math.random() * COLORS.length)];
-    let drawn = 0;
-    let found = false;
-    while (!found && drawn < 30) {
-      refillDeck(room);
-      if (room.deck.length === 0) break;
-      const c = room.deck.shift();
-      nextPlayer.hand.push(c);
-      drawn++;
-      if (c.color === rouletteColor) { found = true; }
+    if (nextPlayer.isBot) {
+      setTimeout(() => {
+        const rouletteColor = COLORS[Math.floor(Math.random() * COLORS.length)];
+        applyRoulette(room, nextPlayer, rouletteColor, io);
+      }, 1500);
     }
-    io.to(room.roomCode).emit('notification', { msg: `🎡 Roulette! ${nextPlayer.nickname} menarik ${drawn} kartu (mencari ${rouletteColor})!` });
-    if (nextPlayer.hand.length >= room.mercyLimit) {
-      nextPlayer.eliminated = true;
-      io.to(room.roomCode).emit('player_eliminated', { nickname: nextPlayer.nickname });
-    }
-    advanceTurn(room, 1); // skip roulette victim
     return;
   }
 
@@ -281,6 +280,33 @@ const applyCardEffect = (room, player, card, chosenColor, io) => {
 
   // Default: number card or regular wild
   advanceTurn(room);
+};
+
+const applyRoulette = (room, player, rouletteColor, io) => {
+  let drawn = 0;
+  let found = false;
+  while (!found && drawn < 30) {
+    refillDeck(room);
+    if (room.deck.length === 0) break;
+    const c = room.deck.shift();
+    player.hand.push(c);
+    drawn++;
+    if (c.color === rouletteColor) { found = true; }
+  }
+  room.currentColor = rouletteColor; // The target's chosen color becomes the top color!
+  io.to(room.roomCode).emit('notification', { msg: `🎡 Roulette! ${player.nickname} menarik ${drawn} kartu (mencari ${rouletteColor})!` });
+  
+  if (player.hand.length >= room.mercyLimit) {
+    player.eliminated = true;
+    io.to(room.roomCode).emit('player_eliminated', { nickname: player.nickname });
+    if (checkWin(room, io)) return;
+  }
+  
+  room.status = 'playing';
+  room.rouletteTarget = null;
+  advanceTurn(room, 1); // skip roulette victim
+  io.to(room.roomCode).emit('game_state', sanitize(room));
+  checkBotTurn(room);
 };
 
 const startGameForRoom = (roomCode) => {
@@ -314,6 +340,29 @@ const startGameForRoom = (roomCode) => {
 };
 
 const checkBotTurn = (room) => {
+  // Handle bot awaiting swap target selection
+  if (room.status === 'awaiting_swap_target') {
+    const initiator = room.players.find(p => p.id === room.swapInitiator);
+    if (initiator && initiator.isBot) {
+      setTimeout(() => {
+        const actives = getActivePlayers(room).filter(p => p.id !== initiator.id);
+        if (actives.length > 0) {
+          const target = actives[Math.floor(Math.random() * actives.length)];
+          const temp = target.hand;
+          target.hand = initiator.hand;
+          initiator.hand = temp;
+          io.to(room.roomCode).emit('notification', { msg: `🔄 ${initiator.nickname} menukar tangan dengan ${target.nickname}!` });
+        }
+        room.status = 'playing';
+        room.swapInitiator = null;
+        advanceTurn(room);
+        io.to(room.roomCode).emit('game_state', sanitize(room));
+        checkBotTurn(room);
+      }, 1200);
+    }
+    return;
+  }
+
   if (room.status !== 'playing') return;
   const cp = room.players[room.currentTurnIndex];
   if (!cp || !cp.isBot) return;
@@ -538,6 +587,34 @@ io.on('connection', (socket) => {
       io.to(roomCode).emit('uno_penalty', { nickname: target.nickname });
       io.to(roomCode).emit('game_state', sanitize(room));
     }
+  });
+
+  socket.on('swap_cards', ({ roomCode, targetId }) => {
+    const room = rooms.get(roomCode);
+    if (!room || room.status !== 'awaiting_swap_target') return;
+    const cp = room.players[room.currentTurnIndex];
+    if (cp.id !== socket.id || room.swapInitiator !== socket.id) return;
+    
+    const target = room.players.find(p => p.id === targetId);
+    if (target && !target.eliminated) {
+      const temp = target.hand;
+      target.hand = cp.hand;
+      cp.hand = temp;
+      io.to(roomCode).emit('notification', { msg: `🔄 ${cp.nickname} menukar tangan dengan ${target.nickname}!` });
+      room.status = 'playing';
+      room.swapInitiator = null;
+      advanceTurn(room);
+      io.to(roomCode).emit('game_state', sanitize(room));
+      checkBotTurn(room);
+    }
+  });
+
+  socket.on('roulette_color', ({ roomCode, color }) => {
+    const room = rooms.get(roomCode);
+    if (!room || room.status !== 'awaiting_roulette_color') return;
+    const cp = room.players[room.currentTurnIndex];
+    if (cp.id !== socket.id || room.rouletteTarget !== socket.id) return;
+    applyRoulette(room, cp, color, io);
   });
 
   socket.on('disconnect', () => {
