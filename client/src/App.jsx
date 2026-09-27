@@ -602,9 +602,9 @@ function App() {
     socket.on('game_started', (r) => { setRoom(r); setView('playing'); });
     socket.on('game_state', setRoom);
     socket.on('game_finished', ({ winner: w }) => { setWinner(w); setView('finished'); unoSound(); });
-    socket.on('player_eliminated', ({ nickname: n }) => { mercySound(); showNotif(`💀 MERCY! ${n} dieliminasi!`); });
-    socket.on('uno_called', ({ nickname: n }) => { unoSound(); showNotif(`<Flame size={16} style={{marginRight: 4, display: "inline-block", verticalAlign: "middle"}}/> ${n} berteriak UNO!`); });
-    socket.on('uno_penalty', ({ nickname: n }) => { showNotif(`<XCircle size={16} style={{marginRight: 4, display: "inline-block", verticalAlign: "middle"}}/> ${n} lupa UNO — hukuman +2 kartu!`); });
+    socket.on('player_eliminated', ({ nickname: n }) => { mercySound(); showNotif(<span>💀 MERCY! {n} dieliminasi!</span>); });
+    socket.on('uno_called', ({ nickname: n }) => { unoSound(); showNotif(<span><Flame size={16} style={{marginRight: 4, display: "inline-block", verticalAlign: "middle"}}/> {n} berteriak UNO!</span>); });
+    socket.on('uno_penalty', ({ nickname: n }) => { showNotif(<span><XCircle size={16} style={{marginRight: 4, display: "inline-block", verticalAlign: "middle"}}/> {n} lupa UNO — hukuman +2 kartu!</span>); });
     socket.on('notification', ({ msg }) => showNotif(msg));
     return () => {
       ['room_updated','game_started','game_state','game_finished','player_eliminated','uno_called','uno_penalty','notification'].forEach(e => socket.off(e));
@@ -832,6 +832,21 @@ function App() {
             <div className="table-center-info">
               <div className={`color-ring color-ring-${(room.currentColor || 'red').toLowerCase()}`}/>
               <span className="color-label">{room.currentColor}</span>
+              <div className={`direction-arrow ${room.direction === 1 ? 'dir-cw' : 'dir-ccw'}`}>
+                <svg viewBox="0 0 100 100" width="44" height="44">
+                  <path
+                    d="M 50,10 A 40,40 0 1,1 10,50"
+                    fill="none" stroke="white" strokeWidth="10"
+                    strokeLinecap="round"
+                  />
+                  {room.direction === 1 ? (
+                    <polygon points="10,50 2,30 22,38" fill="white" />
+                  ) : (
+                    <polygon points="10,50 22,62 2,70" fill="white" />
+                  )}
+                </svg>
+                <span className="dir-label">{room.direction === 1 ? 'Kanan ▶' : '◀ Kiri'}</span>
+              </div>
             </div>
             <div className="pile-area">
               {topCard && <UnoCard card={topCard} disabled />}
@@ -991,7 +1006,7 @@ function App() {
             )}
             {room.players.find(p => p.id === socket.id)?.isHost === false && (
               <button className="nm-btn nm-btn-outline" onClick={() => { playCardSound(); socket.emit('toggle_ready', { roomCode: room.roomCode }); }} onMouseEnter={hoverSound}>
-                TOGGLE SIAP
+                SIAP
               </button>
             )}
           </div>

@@ -269,7 +269,42 @@ body {
 .color-ring-any { background: conic-gradient(var(--red) 25%, var(--yellow) 0 50%, var(--green) 0 75%, var(--blue) 0); }
 .color-label { font-size: 0.65rem; font-weight: 900; letter-spacing: 2px; color: rgba(255,255,255,0.5); }
 
-/* PLAYER AREA */
+/* DIRECTION ARROW */
+.direction-arrow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  opacity: 0.9;
+}
+.direction-arrow svg {
+  filter: drop-shadow(0 0 8px rgba(255,255,255,0.5));
+  transition: transform 0.6s cubic-bezier(0.4,0,0.2,1);
+}
+.dir-cw svg {
+  animation: spin-cw 2.5s linear infinite;
+}
+.dir-ccw svg {
+  animation: spin-ccw 2.5s linear infinite;
+}
+@keyframes spin-cw {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes spin-ccw {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(-360deg); }
+}
+.dir-label {
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: rgba(255,255,255,0.65);
+  text-transform: uppercase;
+}
+
+
 .player-area {
   background: rgba(0,0,0,0.8);
   border-top: 2px solid rgba(255,255,255,0.06);
