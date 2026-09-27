@@ -587,6 +587,8 @@ function App() {
   const [bgmActive, setBgmActive] = useState(false);
   const [notification, setNotification] = useState('');
   const [showRules, setShowRules] = useState(false);
+  const [spectating, setSpectating] = useState(false);
+  const [spectatingPlayerId, setSpectatingPlayerId] = useState(null);
   const notifTimer = useRef(null);
 
   const showNotif = (msg) => {
@@ -637,12 +639,15 @@ function App() {
     // Awaiting Roulette color selection (I am the target)
     const isAwaitingRoulette = room.status === 'awaiting_roulette_color' && room.rouletteTarget === socket.id;
 
-    if (me?.eliminated) {
+    if (me?.eliminated && !spectating) {
       return (
         <div className="full-overlay eliminated-screen">
           <h1 className="mercy-scream"><Skull size={24} style={{marginRight: 8}}/> NO MERCY</h1>
           <p>Anda telah dieliminasi dengan {me.hand.length} kartu.</p>
-          <button className="nm-btn nm-btn-outline mt-4" onClick={() => window.location.reload()}>Menu Utama</button>
+          <div style={{ display: 'flex', gap: '15px', marginTop: '20px' }}>
+            <button className="nm-btn nm-btn-primary" onClick={() => setSpectating(true)}>Stay in Game (Spectate)</button>
+            <button className="nm-btn nm-btn-outline" onClick={() => window.location.reload()}>Keluar (Menu Utama)</button>
+          </div>
         </div>
       );
     }
@@ -653,6 +658,15 @@ function App() {
         {notification && <div className="toast-notif">{notification}</div>}
         {hasPendingDraw && (
           <div className="pending-draw-banner"><AlertTriangle size={20} style={{marginRight: 6, display: "inline-block", verticalAlign: "middle"}}/> Stack aktif! Total +{room.pendingDraw} — Stack atau terima!</div>
+        )}
+
+        {/* SPECTATOR BANNER */}
+        {spectating && me?.eliminated && (
+          <div className="spectator-banner">
+            <Skull size={16} style={{marginRight: 8, flexShrink: 0}}/>
+            <span>Mode Spectator — Klik nama pemain untuk melihat kartunya</span>
+            <button className="spectator-exit-btn" onClick={() => window.location.reload()}>Keluar</button>
+          </div>
         )}
 
         {/* SWAP TARGET MODAL */}
@@ -774,8 +788,15 @@ function App() {
             return (
               <div
                 key={p.id}
-                className={`opp-card ${isTurn ? 'opp-active' : ''} ${p.eliminated ? 'opp-dead' : ''}`}
-                onClick={() => { if (p.hand.length === 1 && !p.unoCalled && !p.eliminated) socket.emit('challenge_uno', { roomCode: room.roomCode, targetId: p.id }); }}
+                className={`opp-card ${isTurn ? 'opp-active' : ''} ${p.eliminated ? 'opp-dead' : ''} ${spectating && !p.eliminated ? 'opp-spectate' : ''}`}
+                onClick={() => {
+                  if (spectating && !p.eliminated) {
+                    setSpectatingPlayerId(p.id);
+                  } else if (p.hand.length === 1 && !p.unoCalled && !p.eliminated) {
+                    socket.emit('challenge_uno', { roomCode: room.roomCode, targetId: p.id });
+                  }
+                }}
+                style={spectating && !p.eliminated ? { cursor: 'pointer', border: '2px solid rgba(255,255,255,0.3)' } : {}}
               >
                 <div className="opp-name-row">
                   <span className="opp-name-txt">{p.isBot ? <Bot size={18} /> : <User size={18} />} {p.nickname}</span>
@@ -793,7 +814,8 @@ function App() {
                 <div className="opp-status-row">
                   <span>{p.hand.length} kartu</span>
                   {p.unoCalled && <span className="uno-badge"><Flame size={16} style={{marginRight: 4, display: "inline-block", verticalAlign: "middle"}}/> UNO!</span>}
-                  {p.hand.length === 1 && !p.unoCalled && !p.eliminated && <span className="challenge-badge">TAP: Challenge!</span>}
+                  {!spectating && p.hand.length === 1 && !p.unoCalled && !p.eliminated && <span className="challenge-badge">TAP: Challenge!</span>}
+                  {spectating && !p.eliminated && <span className="spectate-hint"><Search size={12} style={{marginRight: 3}}/> Lihat kartu</span>}
                 </div>
               </div>
             );
@@ -848,7 +870,8 @@ function App() {
                 if (!drawCards.includes(c.value)) return false;
                 return (amounts[c.value] || 0) >= (amounts[topCard?.value] || 0);
               };
-              const isClickable = isMyTurn && room.status === 'playing' && (!canPlayDrawn || card.id === me.drawnCardThisTurn) && isStackable(card);
+              // Eliminated spectators cannot play
+              const isClickable = !me?.eliminated && isMyTurn && room.status === 'playing' && (!canPlayDrawn || card.id === me.drawnCardThisTurn) && isStackable(card);
               const isHighlight = canPlayDrawn && card.id === me.drawnCardThisTurn;
               // Wild cards that need color selection (exclude WILD_COLOR_ROULETTE)
               const needsColorPick = card.color === 'ANY' && card.value !== 'WILD_COLOR_ROULETTE';
@@ -872,6 +895,23 @@ function App() {
             })}
           </div>
         </div>
+
+        {/* SPECTATOR MODAL */}
+        {spectatingPlayerId && (
+          <div className="action-modal-overlay" onClick={() => setSpectatingPlayerId(null)}>
+            <div className="action-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '90%', width: 'auto', background: '#1c2128' }}>
+              <button className="rules-close-btn" onClick={() => setSpectatingPlayerId(null)}><XCircle size={20}/></button>
+              <h3 className="action-modal-title" style={{textAlign: 'left'}}><Search size={24} style={{marginRight: 8, display: "inline-block", verticalAlign: "middle"}}/> Kartu {room.players.find(p => p.id === spectatingPlayerId)?.nickname}</h3>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '20px', justifyContent: 'center', maxHeight: '60vh', overflowY: 'auto' }}>
+                {room.players.find(p => p.id === spectatingPlayerId)?.hand.map((c, i) => (
+                  <div key={i} style={{transform: 'scale(0.8)', margin: '-15px'}}>
+                    <UnoCard card={c} disabled />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
