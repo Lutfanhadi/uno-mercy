@@ -232,7 +232,7 @@ const applyCardEffect = (room, player, card, chosenColor, io) => {
       const result = drawCards(room, nextPlayer, total);
       if (result === 'MERCY') io.to(room.roomCode).emit('player_eliminated', { nickname: nextPlayer.nickname });
       io.to(room.roomCode).emit('notification', { msg: `💥 ${nextPlayer.nickname} menarik ${total} kartu!` });
-      advanceTurn(room, 1); // skip them
+      advanceTurn(room); // Turn nextPlayer selesai karena penalti, lanjut ke pemain berikutnya
     }
     return;
   }
@@ -273,7 +273,7 @@ const applyCardEffect = (room, player, card, chosenColor, io) => {
       const result = drawCards(room, nextPlayer, total);
       if (result === 'MERCY') io.to(room.roomCode).emit('player_eliminated', { nickname: nextPlayer.nickname });
       io.to(room.roomCode).emit('notification', { msg: `💥 ${nextPlayer.nickname} menarik ${total} kartu!` });
-      advanceTurn(room, 1); // skip them
+      advanceTurn(room); // Turn nextPlayer selesai karena penalti, lanjut ke pemain berikutnya
     }
     return;
   }
@@ -304,7 +304,7 @@ const applyRoulette = (room, player, rouletteColor, io) => {
   
   room.status = 'playing';
   room.rouletteTarget = null;
-  advanceTurn(room, 1); // skip roulette victim
+  advanceTurn(room); // Roulette victim sudah menarik kartu, giliran pindah ke pemain selanjutnya
   io.to(room.roomCode).emit('game_state', sanitize(room));
   checkBotTurn(room);
 };
@@ -526,7 +526,7 @@ io.on('connection', (socket) => {
       const result = drawCards(room, cp, room.pendingDraw);
       if (result === 'MERCY') { io.to(roomCode).emit('player_eliminated', { nickname: cp.nickname }); if (checkWin(room, io)) return; }
       room.pendingDraw = 0;
-      advanceTurn(room, 1);
+      advanceTurn(room);
       io.to(roomCode).emit('game_state', sanitize(room));
       checkBotTurn(room);
       return;
