@@ -12,6 +12,10 @@ const io = new Server(server, { cors: { origin: '*', methods: ['GET', 'POST'] } 
 const PORT = process.env.PORT || 3001;
 const rooms = new Map();
 
+const setLastAction = (room, type, target, count) => {
+  room.lastAction = { type, target, count, id: Date.now() };
+};
+
 const generateRoomCode = () => {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
@@ -108,6 +112,7 @@ const drawCards = (room, player, amount) => {
     refillDeck(room);
     if (room.deck.length > 0) player.hand.push(room.deck.shift());
   }
+  setLastAction(room, 'DRAW', player.id, amount);
   // Check Mercy (25+ cards = eliminated)
   if (player.hand.length >= room.mercyLimit && !player.eliminated) {
     player.eliminated = true;
@@ -298,6 +303,7 @@ const applyRoulette = (room, player, rouletteColor, io) => {
   }
   room.currentColor = rouletteColor; // The target's chosen color becomes the top color!
   io.to(room.roomCode).emit('notification', { msg: `🎡 Roulette! ${player.nickname} menarik ${drawn} kartu (mencari ${rouletteColor})!` });
+  setLastAction(room, 'DRAW', player.id, drawn);
   
   if (player.hand.length >= room.mercyLimit) {
     player.eliminated = true;
@@ -338,6 +344,8 @@ const startGameForRoom = (roomCode) => {
   room.currentColor = firstCard.type === 'WILD' ? COLORS[Math.floor(Math.random() * COLORS.length)] : firstCard.color;
   room.currentTurnIndex = Math.floor(Math.random() * room.players.length);
 
+  setLastAction(room, 'DEAL_ALL', null, 7);
+
   io.to(roomCode).emit('game_started', sanitize(room));
   checkBotTurn(room);
 };
@@ -369,6 +377,18 @@ const checkBotTurn = (room) => {
   if (room.status !== 'playing') return;
   const cp = room.players[room.currentTurnIndex];
   if (!cp || !cp.isBot) return;
+
+  let delay = 1200;
+  if (room.lastAction) {
+    const TEMPO = 220; // Match client animation tempo
+    const FLIGHT = 900;
+    if (room.lastAction.type === 'DEAL_ALL') {
+      // 7 cards × player count × TEMPO + FLIGHT
+      delay = (7 * room.players.length * TEMPO) + FLIGHT + 500;
+    } else if (room.lastAction.type === 'DRAW') {
+      delay = (room.lastAction.count * TEMPO) + FLIGHT + 300;
+    }
+  }
 
   setTimeout(() => {
     if (room.status !== 'playing') return;
@@ -555,6 +575,8 @@ io.on('connection', (socket) => {
     if (room.deck.length === 0) { advanceTurn(room); io.to(roomCode).emit('game_state', sanitize(room)); return; }
     const drawn = room.deck.shift();
     cp.hand.push(drawn);
+    setLastAction(room, 'DRAW', cp.id, 1);
+    
     if (cp.hand.length >= room.mercyLimit) {
       cp.eliminated = true;
       io.to(roomCode).emit('player_eliminated', { nickname: cp.nickname });

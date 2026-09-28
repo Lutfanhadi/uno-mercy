@@ -593,7 +593,18 @@ function App() {
   const [spectatingPlayerId, setSpectatingPlayerId] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
   const [surrendered, setSurrendered] = useState(false);
+  
+  // Animation states
+  const [flyingCards, setFlyingCards] = useState([]);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const pendingRoomRef = useRef(null);
+  const isAnimatingRef = useRef(false);
+  const lastActionIdRef = useRef(null);
   const notifTimer = useRef(null);
+
+  useEffect(() => {
+    isAnimatingRef.current = isAnimating;
+  }, [isAnimating]);
 
   const showNotif = (msg) => {
     setNotification(msg);
@@ -601,16 +612,131 @@ function App() {
     notifTimer.current = setTimeout(() => setNotification(''), 3000);
   };
 
+  const triggerAnimations = (action, r) => {
+    setIsAnimating(true);
+
+    // ── Fallback percentage positions (used if DOM element not found) ──
+    const fallbackPos = (pId) => {
+      const myIndex = r.players.findIndex(p => p.id === socket.id);
+      const targetIndex = r.players.findIndex(p => p.id === pId);
+      if (targetIndex === -1) return { top: '50%', left: '50%' };
+      if (myIndex !== -1 && targetIndex === myIndex) return { top: '87%', left: '50%' };
+      let relative = targetIndex - (myIndex !== -1 ? myIndex : 0);
+      if (relative < 0) relative += r.players.length;
+      if (r.players.length === 2) {
+        if (relative === 1) return { top: '12%', left: '50%' };
+      } else if (r.players.length === 3) {
+        if (relative === 1) return { top: '10%', left: '25%' };
+        if (relative === 2) return { top: '10%', left: '75%' };
+      } else {
+        if (relative === 1) return { top: '50%', left: '8%' };
+        if (relative === 2) return { top: '10%', left: '50%' };
+        if (relative === 3) return { top: '50%', left: '92%' };
+      }
+      return { top: '10%', left: '50%' };
+    };
+
+    // ── First: set the "empty hand" visual state and render flying cards at center ──
+    const TEMPO = 220;
+    const FLIGHT = 900;
+
+    let visualRoom = JSON.parse(JSON.stringify(r));
+    let initialCards = [];
+    let delayCounter = 0;
+
+    if (action.type === 'DEAL_ALL') {
+      visualRoom.players.forEach(p => { p.hand = []; });
+      r.players.forEach(p => {
+        for (let i = 0; i < action.count; i++) {
+          initialCards.push({ id: `${p.id}-${i}-${Math.random()}`, playerId: p.id, delay: delayCounter });
+          delayCounter += TEMPO;
+        }
+      });
+    } else if (action.type === 'DRAW') {
+      const targetP = visualRoom.players.find(p => p.id === action.target);
+      if (targetP) {
+        targetP.hand = targetP.hand.slice(0, Math.max(0, targetP.hand.length - action.count));
+      }
+      for (let i = 0; i < action.count; i++) {
+        initialCards.push({ id: `${action.target}-${i}-${Math.random()}`, playerId: action.target, delay: delayCounter });
+        delayCounter += TEMPO;
+      }
+    }
+
+    setRoom(visualRoom);
+
+    // ── Wait for DOM to paint, then read actual element positions ──
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const resolvedCards = initialCards.map(c => {
+          let targetEl;
+          if (c.playerId === socket.id) {
+            targetEl = document.getElementById('my-player-panel');
+          } else {
+            targetEl = document.getElementById(`opp-panel-${c.playerId}`);
+          }
+
+          let pos;
+          if (targetEl) {
+            const rect = targetEl.getBoundingClientRect();
+            pos = { top: rect.top + rect.height / 2, left: rect.left + rect.width / 2, isPixel: true };
+          } else {
+            pos = { ...fallbackPos(c.playerId), isPixel: false };
+          }
+
+          return { ...c, targetX: pos.left, targetY: pos.top, isPixel: pos.isPixel, active: false };
+        });
+
+        setFlyingCards(resolvedCards);
+
+        // Slight delay so React renders card at center before activating transition
+        setTimeout(() => {
+          setFlyingCards(prev => prev.map(c => ({ ...c, active: true })));
+          drawCardSound();
+        }, 60);
+
+        const totalDuration = delayCounter + FLIGHT;
+        setTimeout(() => {
+          setFlyingCards([]);
+          setIsAnimating(false);
+          if (pendingRoomRef.current) {
+            setRoom(pendingRoomRef.current);
+            pendingRoomRef.current = null;
+          }
+        }, totalDuration);
+      });
+    });
+  };
+
   useEffect(() => {
     socket.on('room_updated', setRoom);
-    socket.on('game_started', (r) => { setRoom(r); setView('playing'); });
-    socket.on('game_state', setRoom);
+    
+    const handleNewState = (r, isStart = false) => {
+      if (isStart) setView('playing');
+      
+      if (r.lastAction && r.lastAction.id !== lastActionIdRef.current) {
+        lastActionIdRef.current = r.lastAction.id;
+        pendingRoomRef.current = r;
+        triggerAnimations(r.lastAction, r);
+      } else {
+        if (isAnimatingRef.current) {
+          pendingRoomRef.current = r;
+        } else {
+          setRoom(r);
+        }
+      }
+    };
+
+    socket.on('game_started', (r) => handleNewState(r, true));
+    socket.on('game_state', (r) => handleNewState(r, false));
+    
     socket.on('game_finished', ({ winner: w }) => { setWinner(w); setView('finished'); unoSound(); });
     socket.on('player_eliminated', ({ nickname: n }) => { mercySound(); showNotif(<span>💀 MERCY! {n} dieliminasi!</span>); });
     socket.on('player_surrendered', ({ nickname: n }) => { showNotif(<span><Flag size={16} style={{marginRight: 4, display: "inline-block", verticalAlign: "middle"}}/> {n} menyerah!</span>); });
     socket.on('uno_called', ({ nickname: n }) => { unoSound(); showNotif(<span><Flame size={16} style={{marginRight: 4, display: "inline-block", verticalAlign: "middle"}}/> {n} berteriak UNO!</span>); });
     socket.on('uno_penalty', ({ nickname: n }) => { showNotif(<span><XCircle size={16} style={{marginRight: 4, display: "inline-block", verticalAlign: "middle"}}/> {n} lupa UNO — hukuman +2 kartu!</span>); });
     socket.on('notification', ({ msg }) => showNotif(msg));
+    
     return () => {
       ['room_updated','game_started','game_state','game_finished','player_eliminated','player_surrendered','uno_called','uno_penalty','notification'].forEach(e => socket.off(e));
     };
@@ -669,8 +795,8 @@ function App() {
     }
 
     return (
-      <div className="game-board" onClick={() => showSettings && setShowSettings(false)}>
-        <button className="bgm-btn" onClick={handleBgmToggle}>{bgmActive ? <Volume2 size={24}/> : <VolumeX size={24}/>}</button>
+      <div className="game-board" onClick={() => showSettings && setShowSettings(false)} style={{ pointerEvents: isAnimating ? 'none' : 'auto' }}>
+        <button className="bgm-btn" style={{ pointerEvents: 'auto' }} onClick={handleBgmToggle}>{bgmActive ? <Volume2 size={24}/> : <VolumeX size={24}/>}</button>
 
         {/* SETTINGS BUTTON or EXIT BUTTON (top right) */}
         {me?.eliminated || surrendered ? (
@@ -732,6 +858,75 @@ function App() {
             )}
           </>
         )}
+        
+        {/* FLYING CARDS ANIMATION */}
+        {flyingCards.map(fc => {
+          const endTop  = fc.isPixel ? `${fc.targetY}px` : fc.targetY;
+          const endLeft = fc.isPixel ? `${fc.targetX}px` : fc.targetX;
+          return (
+            <div
+              key={fc.id}
+              style={{
+                position: 'fixed',
+                top:  fc.active ? endTop  : '50%',
+                left: fc.active ? endLeft : '50%',
+                width: '72px',
+                height: '108px',
+                borderRadius: '10px',
+                // Exact card-back background
+                background: 'linear-gradient(135deg, #792b33 0%, #101620 100%)',
+                border: '4px solid #8895a4',
+                boxShadow: fc.active
+                  ? '0 0 0 1.5px #0f1822, 0 4px 12px rgba(0,0,0,0.55)'
+                  : '0 0 0 1.5px #0f1822, 0 12px 32px rgba(0,0,0,0.8)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transform: fc.active
+                  ? 'translate(-50%, -50%) rotate(12deg)'
+                  : 'translate(-50%, -50%) rotate(-3deg)',
+                opacity: fc.active ? 0 : 1,
+                transition: 'all 0.9s cubic-bezier(0.22, 0.68, 0, 1.2)',
+                transitionDelay: `${fc.delay}ms`,
+                zIndex: 9999,
+                pointerEvents: 'none',
+              }}
+            >
+              {/* Inner dashed frame — same as .card-back-inner */}
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '2px',
+                border: '2px dashed rgba(255,255,255,0.25)',
+                borderRadius: '6px',
+                padding: '6px 10px',
+              }}>
+                {/* UNO yellow text with red shadow */}
+                <span style={{
+                  fontFamily: "'Montserrat', sans-serif",
+                  fontWeight: 900,
+                  fontStyle: 'italic',
+                  fontSize: '1.1rem',
+                  color: '#fdd835',
+                  textShadow: '2px 2px 0 #e53935',
+                  lineHeight: 1,
+                }}>UNO</span>
+                {/* NO MERCY subtitle */}
+                <span style={{
+                  fontFamily: "'Montserrat', sans-serif",
+                  fontSize: '0.28rem',
+                  fontWeight: 900,
+                  letterSpacing: '1px',
+                  color: 'rgba(255,255,255,0.5)',
+                  textTransform: 'uppercase',
+                }}>NO MERCY</span>
+              </div>
+            </div>
+          );
+        })}
+
+        
         {notification && <div className="toast-notif">{notification}</div>}
         {hasPendingDraw && (
           <div className="pending-draw-banner"><AlertTriangle size={20} style={{marginRight: 6, display: "inline-block", verticalAlign: "middle"}}/> Stack aktif! Total +{room.pendingDraw} — Stack atau terima!</div>
@@ -865,6 +1060,7 @@ function App() {
             return (
               <div
                 key={p.id}
+                id={`opp-panel-${p.id}`}
                 className={`opp-card ${isTurn ? 'opp-active' : ''} ${p.eliminated ? 'opp-dead' : ''} ${spectating && !p.eliminated ? 'opp-spectate' : ''}`}
                 onClick={() => {
                   if (spectating && !p.eliminated) {
@@ -926,7 +1122,7 @@ function App() {
         </div>
 
         {/* MY HAND */}
-        <div className={`player-area ${isMyTurn ? 'my-turn' : ''}`}>
+        <div id="my-player-panel" className={`player-area ${isMyTurn ? 'my-turn' : ''}`}>
           <div className="player-top-row">
             <div className="my-stats">
               <span className="my-name-badge"><User size={16} style={{marginRight: 4, display: "inline-block", verticalAlign: "middle"}}/> {me?.nickname}</span>
