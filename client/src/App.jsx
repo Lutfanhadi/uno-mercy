@@ -796,7 +796,6 @@ function App() {
 
     return (
       <div className="game-board" onClick={() => showSettings && setShowSettings(false)} style={{ pointerEvents: isAnimating ? 'none' : 'auto' }}>
-        <button className="bgm-btn" style={{ pointerEvents: 'auto' }} onClick={handleBgmToggle}>{bgmActive ? <Volume2 size={24}/> : <VolumeX size={24}/>}</button>
 
         {/* SETTINGS BUTTON or EXIT BUTTON (top right) */}
         {me?.eliminated || surrendered ? (
@@ -810,6 +809,16 @@ function App() {
             </button>
             {showSettings && (
               <div className="settings-dropdown" onClick={e => e.stopPropagation()}>
+                {/* Music toggle inside dropdown */}
+                <button
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', background: 'none', border: 'none', color: bgmActive ? '#89dceb' : '#a6adc8', padding: '8px 14px', cursor: 'pointer', fontSize: '0.85rem', borderBottom: '1px solid rgba(255,255,255,0.07)', transition: 'background 0.2s' }}
+                  onMouseEnter={e => e.currentTarget.style.background='rgba(255,255,255,0.07)'}
+                  onMouseLeave={e => e.currentTarget.style.background='none'}
+                  onClick={handleBgmToggle}
+                >
+                  {bgmActive ? <Volume2 size={16}/> : <VolumeX size={16}/>}
+                  <span>Musik {bgmActive ? 'Nyala' : 'Mati'}</span>
+                </button>
                 <button className="surrender-btn" onClick={async () => {
                   setShowSettings(false);
                   const result = await Swal.fire({
