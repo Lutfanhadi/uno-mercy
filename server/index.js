@@ -317,7 +317,7 @@ const startGameForRoom = (roomCode) => {
   room.status = 'playing';
   room.deck = createDeck();
   room.discardPile = [];
-  room.direction = 1;
+  room.direction = -1;
   room.pendingDraw = 0;
 
   room.players.forEach(p => {
@@ -467,7 +467,7 @@ io.on('connection', (socket) => {
       roomCode, hostId: socket.id,
       maxPlayers: isSinglePlayer ? 2 : (maxPlayers || 4),
       mercyLimit: mercyLimit || 25,
-      players: [host], status: 'waiting', direction: 1, pendingDraw: 0,
+      players: [host], status: 'waiting', direction: -1, pendingDraw: 0,
     };
     if (isSinglePlayer) {
       room.players.push({ id: `bot_${Date.now()}`, nickname: 'Bot Mercy', isHost: false, isReady: true, hand: [], eliminated: false, isBot: true });
@@ -627,7 +627,25 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('surrender', ({ roomCode }) => {
+    const room = rooms.get(roomCode);
+    if (!room || room.status !== 'playing') return;
+    const player = room.players.find(p => p.id === socket.id);
+    if (!player || player.eliminated) return;
+    player.eliminated = true;
+    io.to(roomCode).emit('player_surrendered', { nickname: player.nickname });
+    io.to(roomCode).emit('player_eliminated', { nickname: player.nickname });
+    // If it was this player's turn, advance
+    if (room.players[room.currentTurnIndex]?.id === socket.id) {
+      advanceTurn(room);
+    }
+    if (checkWin(room, io)) return;
+    io.to(roomCode).emit('game_state', sanitize(room));
+    checkBotTurn(room);
+  });
+
   socket.on('cancel_swap', ({ roomCode }) => {
+
     const room = rooms.get(roomCode);
     if (!room || room.status !== 'awaiting_swap_target') return;
     const cp = room.players[room.currentTurnIndex];

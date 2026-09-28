@@ -4,10 +4,12 @@ import { playCardSound, drawCardSound, unoSound, mercySound, hoverSound, toggleB
 import './App.css';
 import {
   BookOpen, SquareStack, Target, Skull, CheckCircle, Hash, Ban, ArrowRight, Repeat,
-  RefreshCw, Users, Plus, ArrowDownToLine, Zap, AlertTriangle, Palette, Lightbulb, Scale,
+  RefreshCw, RefreshCcw, Users, Plus, ArrowDownToLine, Zap, AlertTriangle, Palette, Lightbulb, Scale,
   Search, Dices, Frown, BarChart2, Trophy, Swords, Home, Link, User, Bot, Crown,
-  Hourglass, Rocket, Flame, XCircle, Circle, Trash2, Volume2, VolumeX, Hand
+  Hourglass, Rocket, Flame, XCircle, Circle, Trash2, Volume2, VolumeX, Hand, Settings, LogOut, Flag
 } from 'lucide-react';
+import Swal from 'sweetalert2';
+
 
 
 const socket = io("https://ahead-culprit-treble.ngrok-free.dev", {
@@ -589,6 +591,8 @@ function App() {
   const [showRules, setShowRules] = useState(false);
   const [spectating, setSpectating] = useState(false);
   const [spectatingPlayerId, setSpectatingPlayerId] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [surrendered, setSurrendered] = useState(false);
   const notifTimer = useRef(null);
 
   const showNotif = (msg) => {
@@ -603,11 +607,12 @@ function App() {
     socket.on('game_state', setRoom);
     socket.on('game_finished', ({ winner: w }) => { setWinner(w); setView('finished'); unoSound(); });
     socket.on('player_eliminated', ({ nickname: n }) => { mercySound(); showNotif(<span>💀 MERCY! {n} dieliminasi!</span>); });
+    socket.on('player_surrendered', ({ nickname: n }) => { showNotif(<span><Flag size={16} style={{marginRight: 4, display: "inline-block", verticalAlign: "middle"}}/> {n} menyerah!</span>); });
     socket.on('uno_called', ({ nickname: n }) => { unoSound(); showNotif(<span><Flame size={16} style={{marginRight: 4, display: "inline-block", verticalAlign: "middle"}}/> {n} berteriak UNO!</span>); });
     socket.on('uno_penalty', ({ nickname: n }) => { showNotif(<span><XCircle size={16} style={{marginRight: 4, display: "inline-block", verticalAlign: "middle"}}/> {n} lupa UNO — hukuman +2 kartu!</span>); });
     socket.on('notification', ({ msg }) => showNotif(msg));
     return () => {
-      ['room_updated','game_started','game_state','game_finished','player_eliminated','uno_called','uno_penalty','notification'].forEach(e => socket.off(e));
+      ['room_updated','game_started','game_state','game_finished','player_eliminated','player_surrendered','uno_called','uno_penalty','notification'].forEach(e => socket.off(e));
     };
   }, []);
 
@@ -639,22 +644,94 @@ function App() {
     // Awaiting Roulette color selection (I am the target)
     const isAwaitingRoulette = room.status === 'awaiting_roulette_color' && room.rouletteTarget === socket.id;
 
-    if (me?.eliminated && !spectating) {
+    if ((me?.eliminated || surrendered) && !spectating) {
+      const isSurrender = surrendered;
       return (
         <div className="full-overlay eliminated-screen">
-          <h1 className="mercy-scream"><Skull size={24} style={{marginRight: 8}}/> NO MERCY</h1>
-          <p>Anda telah dieliminasi dengan {me.hand.length} kartu.</p>
+          {isSurrender ? (
+            <>
+              <Flag size={40} style={{color: '#ff9800', marginBottom: 8}}/>
+              <h1 className="mercy-scream" style={{color: '#ff9800'}}>MENYERAH</h1>
+              <p>Kamu memilih untuk menyerah dari permainan.</p>
+            </>
+          ) : (
+            <>
+              <h1 className="mercy-scream"><Skull size={24} style={{marginRight: 8}}/> NO MERCY</h1>
+              <p>Anda telah dieliminasi dengan {me.hand.length} kartu.</p>
+            </>
+          )}
           <div style={{ display: 'flex', gap: '15px', marginTop: '20px' }}>
-            <button className="nm-btn nm-btn-primary" onClick={() => setSpectating(true)}>Stay in Game (Spectate)</button>
-            <button className="nm-btn nm-btn-outline" onClick={() => window.location.reload()}>Keluar (Menu Utama)</button>
+            <button className="nm-btn nm-btn-primary" onClick={() => { setSurrendered(false); setSpectating(true); }}>Tonton Permainan</button>
+            <button className="nm-btn nm-btn-outline" onClick={() => window.location.reload()}>Keluar ke Menu</button>
           </div>
         </div>
       );
     }
 
     return (
-      <div className="game-board">
+      <div className="game-board" onClick={() => showSettings && setShowSettings(false)}>
         <button className="bgm-btn" onClick={handleBgmToggle}>{bgmActive ? <Volume2 size={24}/> : <VolumeX size={24}/>}</button>
+
+        {/* SETTINGS BUTTON or EXIT BUTTON (top right) */}
+        {me?.eliminated || surrendered ? (
+          <button className="settings-btn" style={{background: 'rgba(220,38,38,0.7)', borderColor: 'rgba(220,38,38,0.5)'}} onClick={() => window.location.reload()} title="Keluar ke Menu">
+            <LogOut size={20}/>
+          </button>
+        ) : (
+          <>
+            <button className="settings-btn" onClick={(e) => { e.stopPropagation(); setShowSettings(s => !s); }} title="Pengaturan">
+              <Settings size={20}/>
+            </button>
+            {showSettings && (
+              <div className="settings-dropdown" onClick={e => e.stopPropagation()}>
+                <button className="surrender-btn" onClick={async () => {
+                  setShowSettings(false);
+                  const result = await Swal.fire({
+                    title: '<span style="color:#ff9800">🚩 Menyerah?</span>',
+                    html: `
+                      <div style="color:#cdd6f4; font-size:0.95rem; line-height:1.6">
+                        Kamu akan <strong style="color:#ff5252">keluar dari permainan</strong> dan tidak bisa bermain lagi.<br/><br/>
+                        <span style="color:#a6adc8">Kamu masih bisa <strong style="color:#89b4fa">menonton permainan</strong> hingga selesai.</span>
+                      </div>
+                    `,
+                    icon: 'warning',
+                    background: '#1e2030',
+                    color: '#cdd6f4',
+                    showCancelButton: true,
+                    confirmButtonText: '🚩 Ya, Saya Menyerah',
+                    cancelButtonText: 'Batal',
+                    confirmButtonColor: '#e53935',
+                    cancelButtonColor: '#45475a',
+                    reverseButtons: true,
+                    customClass: {
+                      popup: 'swal-uno-popup',
+                      title: 'swal-uno-title',
+                    },
+                    showClass: { popup: 'swal2-show' },
+                    hideClass: { popup: 'swal2-hide' },
+                  });
+                  if (result.isConfirmed) {
+                    socket.emit('surrender', { roomCode: room.roomCode });
+                    setSurrendered(true);
+                    Swal.fire({
+                      title: '<span style="color:#ff9800">🚩 Menyerah</span>',
+                      html: '<div style="color:#a6adc8">Kamu telah menyerah. Tetap semangat!</div>',
+                      icon: 'info',
+                      background: '#1e2030',
+                      color: '#cdd6f4',
+                      timer: 2000,
+                      timerProgressBar: true,
+                      showConfirmButton: false,
+                      customClass: { popup: 'swal-uno-popup' },
+                    });
+                  }
+                }}>
+                  <Flag size={16}/> Menyerah
+                </button>
+              </div>
+            )}
+          </>
+        )}
         {notification && <div className="toast-notif">{notification}</div>}
         {hasPendingDraw && (
           <div className="pending-draw-banner"><AlertTriangle size={20} style={{marginRight: 6, display: "inline-block", verticalAlign: "middle"}}/> Stack aktif! Total +{room.pendingDraw} — Stack atau terima!</div>
@@ -833,19 +910,12 @@ function App() {
               <div className={`color-ring color-ring-${(room.currentColor || 'red').toLowerCase()}`}/>
               <span className="color-label">{room.currentColor}</span>
               <div className={`direction-arrow ${room.direction === 1 ? 'dir-cw' : 'dir-ccw'}`}>
-                <svg viewBox="0 0 100 100" width="44" height="44">
-                  <path
-                    d="M 50,10 A 40,40 0 1,1 10,50"
-                    fill="none" stroke="white" strokeWidth="10"
-                    strokeLinecap="round"
-                  />
-                  {room.direction === 1 ? (
-                    <polygon points="10,50 2,30 22,38" fill="white" />
-                  ) : (
-                    <polygon points="10,50 22,62 2,70" fill="white" />
-                  )}
-                </svg>
-                <span className="dir-label">{room.direction === 1 ? 'Kanan ▶' : '◀ Kiri'}</span>
+                {room.direction === 1 ? (
+                  <RefreshCw size={44} color="white" />
+                ) : (
+                  <RefreshCcw size={44} color="white" />
+                )}
+                <span className="dir-label">{room.direction === 1 ? '◀ Kiri' : 'Kanan ▶'}</span>
               </div>
             </div>
             <div className="pile-area">

@@ -54,16 +54,39 @@ body {
 }
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.7; } }
 
-.bgm-btn {
-  position: fixed; top: 15px; left: 15px;
+.bgm-btn, .settings-btn {
+  position: fixed; top: 15px;
   background: rgba(0,0,0,0.6);
   border: 1px solid rgba(255,255,255,0.15);
   color: white; width: 40px; height: 40px;
   border-radius: 50%; cursor: pointer;
   font-size: 1.2rem; z-index: 100;
   transition: background 0.2s;
+  display: flex; align-items: center; justify-content: center;
 }
-.bgm-btn:hover { background: rgba(255,255,255,0.15); }
+.bgm-btn { left: 15px; }
+.settings-btn { right: 15px; }
+.bgm-btn:hover, .settings-btn:hover { background: rgba(255,255,255,0.15); }
+
+.settings-dropdown {
+  position: fixed; top: 60px; right: 15px;
+  background: #161d26; border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 8px; padding: 5px 0;
+  z-index: 100; min-width: 150px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  animation: fadeIn 0.15s ease-out forwards;
+}
+.settings-dropdown button {
+  width: 100%; text-align: left; background: none; border: none;
+  color: white; padding: 10px 15px; font-size: 0.9rem;
+  cursor: pointer; display: flex; align-items: center; gap: 8px;
+  font-family: 'Space Grotesk', sans-serif; font-weight: 500;
+}
+.settings-dropdown button:hover {
+  background: rgba(255,255,255,0.1);
+}
+.settings-dropdown button.surrender-btn { color: #ff5252; }
+.settings-dropdown button.surrender-btn:hover { background: rgba(255, 82, 82, 0.15); }
 
 /* ============================================================
    MENU SCREEN
@@ -1008,3 +1031,54 @@ body {
   }
 }
 
+/* ============================================================
+   SWEETALERT2 CUSTOM THEME — UNO No Mercy
+============================================================ */
+.swal-uno-popup {
+  border-radius: 16px !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 0 40px rgba(229, 57, 53, 0.25), 0 20px 60px rgba(0,0,0,0.7) !important;
+  font-family: 'Space Grotesk', 'Nunito', sans-serif !important;
+  backdrop-filter: blur(10px) !important;
+}
+
+.swal2-title.swal-uno-title {
+  font-family: 'Montserrat', sans-serif !important;
+  font-weight: 900 !important;
+  letter-spacing: 1px !important;
+}
+
+.swal2-icon.swal2-warning {
+  border-color: #ff9800 !important;
+  color: #ff9800 !important;
+}
+
+.swal2-icon.swal2-info {
+  border-color: #89b4fa !important;
+  color: #89b4fa !important;
+}
+
+.swal2-timer-progress-bar {
+  background: #e53935 !important;
+}
+
+.swal2-confirm {
+  font-family: 'Space Grotesk', sans-serif !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.5px !important;
+  border-radius: 8px !important;
+  padding: 10px 20px !important;
+  transition: transform 0.1s, box-shadow 0.2s !important;
+}
+
+.swal2-confirm:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 15px rgba(229,57,53,0.4) !important;
+}
+
+.swal2-cancel {
+  font-family: 'Space Grotesk', sans-serif !important;
+  font-weight: 600 !important;
+  border-radius: 8px !important;
+  padding: 10px 20px !important;
+}
