@@ -259,6 +259,26 @@ body {
 .uno-badge { color: var(--yellow); font-weight: 900; animation: pulse 1s infinite; }
 .challenge-badge { color: var(--red); font-weight: 900; font-size: 0.6rem; animation: pulse 0.8s infinite; }
 
+/* UNO Challenge Window: opponent panel highlighted when challenge is valid */
+.opp-uno-challengeable {
+  cursor: pointer;
+  border: 2px solid var(--red) !important;
+  box-shadow: 0 0 18px rgba(229,57,53,0.7), 0 0 6px rgba(229,57,53,0.4) !important;
+  animation: uno-challenge-glow 0.7s ease-in-out infinite alternate;
+}
+@keyframes uno-challenge-glow {
+  from { box-shadow: 0 0 10px rgba(229,57,53,0.5); border-color: rgba(229,57,53,0.8); }
+  to   { box-shadow: 0 0 28px rgba(229,57,53,1), 0 0 8px rgba(255,100,50,0.7); border-color: var(--red); }
+}
+.uno-pulse {
+  animation: uno-pulse-blink 0.5s step-start infinite;
+}
+@keyframes uno-pulse-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+
 /* TABLE CENTER */
 .game-table {
   flex-grow: 1;

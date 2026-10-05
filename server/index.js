@@ -43,16 +43,14 @@ const createDeck = () => {
       deck.push({ id: id++, type: 'ACTION', color, value: 'REVERSE' });
       deck.push({ id: id++, type: 'ACTION', color, value: 'DRAW_TWO' });
     }
-    // 1× Skip Everyone, 1× Discard All per color
     deck.push({ id: id++, type: 'ACTION', color, value: 'SKIP_EVERYONE' });
     deck.push({ id: id++, type: 'ACTION', color, value: 'DISCARD_ALL' });
-
-    // Colored Wilds — ONLY Wild Draw Four has per-color variants (1 per color = 4 total)
-    deck.push({ id: id++, type: 'WILD', color, value: 'WILD_DRAW_FOUR' });
   });
 
-  // Black Wild cards (color: 'ANY') — 4 each: WD6, WD10, WRDF, Roulette
+  // Black Wild cards (color: 'ANY')
+  // 4 each: WD4, WD6, WD10, WRDF, Roulette
   for (let i = 0; i < 4; i++) {
+    deck.push({ id: id++, type: 'WILD', color: 'ANY', value: 'WILD_DRAW_FOUR' });
     deck.push({ id: id++, type: 'WILD', color: 'ANY', value: 'WILD_DRAW_SIX' });
     deck.push({ id: id++, type: 'WILD', color: 'ANY', value: 'WILD_DRAW_TEN' });
     deck.push({ id: id++, type: 'WILD', color: 'ANY', value: 'WILD_REVERSE_DRAW_FOUR' });
@@ -60,6 +58,7 @@ const createDeck = () => {
   }
 
   return deck.sort(() => Math.random() - 0.5);
+
 };
 
 // ============================================================
@@ -136,8 +135,16 @@ const getNextActiveIndex = (room, fromIndex, skipExtra = 0) => {
   } while (true);
 };
 
+// Tutup UNO challenge window — dipanggil saat giliran berpindah atau UNO sudah dipanggil
+const closeUnoWindow = (room) => {
+  room.unoChallengeable = false;
+  room.unoChallengeTargetId = null;
+};
+
 const advanceTurn = (room, skipExtra = 0) => {
   room.players.forEach(p => { p.drawnCardThisTurn = null; });
+  // Tutup UNO challenge window saat giliran berpindah (turn berikutnya dimulai)
+  closeUnoWindow(room);
   // JANGAN reset pendingDraw di sini. Reset hanya terjadi saat penalti ditarik.
   room.currentTurnIndex = getNextActiveIndex(room, room.currentTurnIndex, skipExtra);
 };
@@ -163,7 +170,13 @@ const sanitize = (room) => {
 
 const applyCardEffect = (room, player, card, chosenColor, io) => {
   const topCard = room.discardPile[room.discardPile.length - 1];
-  room.currentColor = card.type === 'WILD' ? chosenColor : card.color;
+  // Untuk WILD hitam (color: 'ANY'): pakai chosenColor yang dipilih pemain
+  // Untuk WILD berwarna (mis. WILD_DRAW_FOUR merah/hijau/dll): pakai warna kartu itu sendiri
+  if (card.type === 'WILD') {
+    room.currentColor = card.color === 'ANY' ? chosenColor : card.color;
+  } else {
+    room.currentColor = card.color;
+  }
 
   // 7's Swap
   if (card.value === '7' && card.type === 'NUMBER') {
@@ -325,6 +338,8 @@ const startGameForRoom = (roomCode) => {
   room.discardPile = [];
   room.direction = -1;
   room.pendingDraw = 0;
+  room.unoChallengeable = false;
+  room.unoChallengeTargetId = null;
 
   room.players.forEach(p => {
     p.hand = room.deck.splice(0, 7);
@@ -394,6 +409,9 @@ const checkBotTurn = (room) => {
     if (room.status !== 'playing') return;
     const currentBot = room.players[room.currentTurnIndex];
     if (!currentBot || !currentBot.isBot) return;
+
+    // Bot memulai giliran → tutup UNO challenge window dari pemain sebelumnya
+    closeUnoWindow(room);
 
     // Find playable card
     let playIdx = currentBot.hand.findIndex(c => canPlayCard(c, room, currentBot.hand, room.pendingDraw || 0));
@@ -537,14 +555,27 @@ io.on('connection', (socket) => {
 
     cp.hand.splice(cardIdx, 1);
     room.discardPile.push(card);
-    if (cp.hand.length !== 1) cp.unoCalled = false;
 
     if (cp.hand.length === 0) {
+      closeUnoWindow(room);
       room.status = 'finished';
       io.to(roomCode).emit('game_finished', { winner: cp.nickname });
       io.to(roomCode).emit('game_state', sanitize(room));
       return;
     }
+
+    // UNO: jika tersisa 1 kartu, buka challenge window (pemain lain bisa challenge)
+    // Penalty TIDAK otomatis — hanya diberikan jika pemain lain melakukan challenge_uno
+    if (cp.hand.length === 1 && !cp.unoCalled) {
+      room.unoChallengeable = true;
+      room.unoChallengeTargetId = cp.id;
+    } else if (cp.hand.length === 1 && cp.unoCalled) {
+      // Pemain sudah call UNO sebelum/saat main kartu → tutup window
+      closeUnoWindow(room);
+    }
+
+    // Reset unoCalled jika sudah tidak punya 1 kartu
+    if (cp.hand.length !== 1) cp.unoCalled = false;
 
     room.previousColor = room.currentColor;
     applyCardEffect(room, cp, card, chosenColor || 'RED', io);
@@ -558,6 +589,9 @@ io.on('connection', (socket) => {
     if (!room || room.status !== 'playing') return;
     const cp = room.players[room.currentTurnIndex];
     if (cp.id !== socket.id || cp.drawnCardThisTurn) return;
+
+    // Pemain mulai giliran (draw) → tutup UNO challenge window pemain sebelumnya
+    closeUnoWindow(room);
 
     if (room.pendingDraw > 0) {
       // Must accept penalty
@@ -610,8 +644,14 @@ io.on('connection', (socket) => {
     const room = rooms.get(roomCode);
     if (!room || room.status !== 'playing') return;
     const p = room.players.find(p => p.id === socket.id);
+    // Valid: pemain hanya punya 1 kartu
+    // (termasuk saat 2 kartu & giliran mereka — untuk call sebelum lempar kartu terakhir)
     if (p && (p.hand.length === 1 || (p.hand.length === 2 && room.players[room.currentTurnIndex].id === socket.id))) {
       p.unoCalled = true;
+      // Jika pemain yang call adalah target challenge window → tutup window (tidak bisa di-challenge lagi)
+      if (room.unoChallengeTargetId === socket.id) {
+        closeUnoWindow(room);
+      }
       io.to(roomCode).emit('uno_called', { nickname: p.nickname });
       io.to(roomCode).emit('game_state', sanitize(room));
     }
@@ -620,11 +660,25 @@ io.on('connection', (socket) => {
   socket.on('challenge_uno', ({ roomCode, targetId }) => {
     const room = rooms.get(roomCode);
     if (!room || room.status !== 'playing') return;
+    // Challenger tidak boleh menantang dirinya sendiri
+    if (socket.id === targetId) return;
     const target = room.players.find(p => p.id === targetId);
-    if (target && target.hand.length === 1 && !target.unoCalled && !target.eliminated) {
+    // Validasi: target punya 1 kartu, belum call UNO, window masih terbuka, targetId cocok
+    if (
+      target &&
+      target.hand.length === 1 &&
+      !target.unoCalled &&
+      !target.eliminated &&
+      room.unoChallengeable === true &&
+      room.unoChallengeTargetId === targetId
+    ) {
+      // Tutup window — hanya satu challenge per window
+      closeUnoWindow(room);
+      // Beri penalti +2 (UNO penalty, BUKAN draw card biasa — tidak masuk stacking)
       const result = drawCards(room, target, 2);
       if (result === 'MERCY') { io.to(roomCode).emit('player_eliminated', { nickname: target.nickname }); checkWin(room, io); }
       io.to(roomCode).emit('uno_penalty', { nickname: target.nickname });
+      io.to(roomCode).emit('notification', { msg: `🚨 UNO Challenge! ${target.nickname} lupa bilang UNO — kena penalti +2 kartu!` });
       io.to(roomCode).emit('game_state', sanitize(room));
     }
   });

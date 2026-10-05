@@ -579,7 +579,7 @@ function RulesModal({ onClose }) {
 // ============================================================
 function App() {
   const [view, setView] = useState('menu');
-  const [nickname, setNickname] = useState('');
+  const [nickname, setNickname] = useState(() => localStorage.getItem('uno_nickname') || '');
   const [inputRoomCode, setInputRoomCode] = useState('');
   const [room, setRoom] = useState(null);
   const [maxPlayers, setMaxPlayers] = useState(4);
@@ -1066,15 +1066,17 @@ function App() {
             const isTurn = room.players[room.currentTurnIndex]?.id === p.id;
             const mercyPct = Math.min(100, (p.hand.length / room.mercyLimit) * 100);
             const isWarning = p.hand.length >= room.mercyLimit - 4;
+            // Challenge hanya valid jika server membuka window (unoChallengeable) dan target cocok
+            const canChallenge = !spectating && room.unoChallengeable && room.unoChallengeTargetId === p.id && !p.unoCalled && !p.eliminated;
             return (
               <div
                 key={p.id}
                 id={`opp-panel-${p.id}`}
-                className={`opp-card ${isTurn ? 'opp-active' : ''} ${p.eliminated ? 'opp-dead' : ''} ${spectating && !p.eliminated ? 'opp-spectate' : ''}`}
+                className={`opp-card ${isTurn ? 'opp-active' : ''} ${p.eliminated ? 'opp-dead' : ''} ${spectating && !p.eliminated ? 'opp-spectate' : ''} ${canChallenge ? 'opp-uno-challengeable' : ''}`}
                 onClick={() => {
                   if (spectating && !p.eliminated) {
                     setSpectatingPlayerId(p.id);
-                  } else if (p.hand.length === 1 && !p.unoCalled && !p.eliminated) {
+                  } else if (canChallenge) {
                     socket.emit('challenge_uno', { roomCode: room.roomCode, targetId: p.id });
                   }
                 }}
@@ -1096,7 +1098,7 @@ function App() {
                 <div className="opp-status-row">
                   <span>{p.hand.length} kartu</span>
                   {p.unoCalled && <span className="uno-badge"><Flame size={16} style={{marginRight: 4, display: "inline-block", verticalAlign: "middle"}}/> UNO!</span>}
-                  {!spectating && p.hand.length === 1 && !p.unoCalled && !p.eliminated && <span className="challenge-badge">TAP: Challenge!</span>}
+                  {canChallenge && <span className="challenge-badge uno-pulse">🚨 TAP: Challenge!</span>}
                   {spectating && !p.eliminated && <span className="spectate-hint"><Search size={12} style={{marginRight: 3}}/> Lihat kartu</span>}
                 </div>
               </div>
@@ -1139,6 +1141,7 @@ function App() {
             </div>
 
             <div className="action-buttons">
+              {/* UNO Button: muncul jika punya 1 kartu dan belum call, atau window challenge terbuka untuk saya */}
               {me?.hand.length === 1 && !me?.unoCalled && (
                 <button className="nm-btn nm-btn-uno" onClick={() => { unoSound(); socket.emit('call_uno', { roomCode: room.roomCode }); }} onMouseEnter={hoverSound}>
                   <Flame size={16} style={{marginRight: 4, display: "inline-block", verticalAlign: "middle"}}/> UNO!
@@ -1175,7 +1178,7 @@ function App() {
                       // Show color picker modal, don't send to server yet
                       setWildColorPending(id);
                     } else {
-                      socket.emit('play_card', { roomCode: room.roomCode, cardId: id, chosenColor: 'RED' });
+                      socket.emit('play_card', { roomCode: room.roomCode, cardId: id, chosenColor: card.color });
                     }
                   } : null}
                   disabled={!isClickable}
@@ -1220,7 +1223,7 @@ function App() {
 
       {view === 'menu' && (
         <div className="nm-panel">
-          <input className="nm-input" type="text" value={nickname} onChange={e => setNickname(e.target.value)} placeholder="Nama Pemain..." maxLength={15}/>
+          <input className="nm-input" type="text" value={nickname} onChange={e => { setNickname(e.target.value); localStorage.setItem('uno_nickname', e.target.value); }} placeholder="Nama Pemain..." maxLength={15}/>
           <div className="btn-stack">
             <button className="nm-btn nm-btn-red" onClick={() => { playCardSound(); handleCreateRoom(true); }} onMouseEnter={hoverSound}><Swords size={20} style={{marginRight: 8, display: "inline-block", verticalAlign: "middle"}}/> LAWAN BOT</button>
             <button className="nm-btn nm-btn-dark" onClick={() => { playCardSound(); setView('create'); }} onMouseEnter={hoverSound}><Home size={20} style={{marginRight: 8, display: "inline-block", verticalAlign: "middle"}}/> BUAT RUANGAN</button>
